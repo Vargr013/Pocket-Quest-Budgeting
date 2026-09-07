@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Pocket Quest Budgeting</string>
-    <string name="prototype_development">Prototype Development</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="login">Login</string>
+    <string name="dashboard">Dashboard</string>
 </resources>
