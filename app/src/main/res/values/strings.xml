@@ -4,4 +4,12 @@
     <string name="password">Password</string>
     <string name="login">Login</string>
     <string name="dashboard">Dashboard</string>
+    <string name="add_expense">Add Expense</string>
+    <string name="history">History</string>
+    <string name="add_photo">Add Photo</string>
+    <string name="remove_photo">Remove Photo</string>
+    <string name="save">Save</string>
+    <string name="receipt_photo">Receipt Photo</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
 </resources>
