@@ -26,7 +26,10 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
             )
         }
         composable("dashboard") {
-            DashboardScreen()
+            DashboardScreen(
+                onAddExpense = { navController.navigate("add_expense") },
+                onHistory = { navController.navigate("history") },
+            )
         }
         composable("add_expense") {
             AddExpenseScreen(onBack = { navController.popBackStack() })
