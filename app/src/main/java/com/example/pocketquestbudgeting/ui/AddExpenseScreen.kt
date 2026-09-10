@@ -148,6 +148,7 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     try {
                         val db = DatabaseProvider.get(context)
                         val userId = db.activeUserId()
+                        // I reused the shared category checks when saving expenses.
                         val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
                         db.expenseDao().insert(
                             ExpenseEntity(

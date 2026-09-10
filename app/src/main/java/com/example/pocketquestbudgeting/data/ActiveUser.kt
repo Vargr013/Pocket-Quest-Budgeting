@@ -2,13 +2,13 @@ package com.example.pocketquestbudgeting.data
 
 import androidx.room.withTransaction
 
-// Login is still a demo. Replace this lookup with the signed-in user's ID later.
+// I kept the demo user lookup here until login is connected.
 suspend fun AppDatabase.activeUserId(): Long = withTransaction {
     val user = userDao().getByUsername("demo")
     val userId = user?.id ?: userDao().insert(UserEntity(username = "demo"))
     if (user?.categoriesInitialized != true) {
-        // The flag survives empty lists and app restarts. Keep it in the same transaction
-        // as the defaults so an interrupted setup can safely retry.
+        // I saved the defaults and flag together to avoid half-finished setup.
+        // I used the flag to avoid restoring deleted defaults.
         for (name in listOf("Groceries", "Transport", "Entertainment", "Rent")) {
             categoryDao().getOrCreate(userId, name)
         }

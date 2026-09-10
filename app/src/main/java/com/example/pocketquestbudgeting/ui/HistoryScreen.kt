@@ -39,6 +39,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         val db = DatabaseProvider.get(context)
+        // I reused the save flow's user lookup to keep history scoped to that user.
         expenses = db.expenseDao().getForUser(db.activeUserId())
     }
     Column(

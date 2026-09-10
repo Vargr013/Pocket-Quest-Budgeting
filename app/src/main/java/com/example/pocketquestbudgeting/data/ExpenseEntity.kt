@@ -9,9 +9,9 @@ data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: Long,
     val categoryId: Long,
-    // Store whole cents so money does not lose precision through floating-point rounding.
+    // I stored cents as whole numbers to avoid rounding errors.
     val amount: Long,
-    // Use YYYY-MM-DD for dates and 24-hour HH:mm for times.
+    // I used YYYY-MM-DD for dates and HH:mm for 24-hour times.
     val date: String,
     val startTime: String,
     val endTime: String,

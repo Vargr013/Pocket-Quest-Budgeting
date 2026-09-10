@@ -8,10 +8,10 @@ import androidx.room.PrimaryKey
 data class BudgetGoalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: Long,
-    // Both limits are stored in whole cents, matching expense amounts.
+    // I kept both limits in cents, matching expenses.
     val minimumAmount: Long,
     val maximumAmount: Long,
-    // The goal covers this date range, using YYYY-MM-DD.
+    // I used YYYY-MM-DD for both ends of the goal's date range.
     val startDate: String,
     val endDate: String,
 )

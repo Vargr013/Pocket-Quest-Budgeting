@@ -18,7 +18,7 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
         composable("login") {
             LoginScreen(
                 onLogin = {
-                    // Prototype only: move to Dashboard without checking credentials.
+                    // I left credential checks out while login is still a demo.
                     navController.navigate("dashboard") {
                         launchSingleTop = true
                     }
@@ -29,7 +29,6 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
             DashboardScreen(
                 onAddExpense = { navController.navigate("add_expense") },
                 onHistory = { navController.navigate("history") },
-                onCategories = { navController.navigate("categories") },
             )
         }
         composable("add_expense") {
@@ -37,9 +36,6 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
         }
         composable("history") {
             HistoryScreen(onBack = { navController.popBackStack() })
-        }
-        composable("categories") {
-            CategoriesScreen(onBack = { navController.popBackStack() })
         }
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import java.io.File
 fun copyReceiptToAppStorage(context: Context, source: Uri): String? {
+    // I kept a local receipt copy to avoid needing gallery access later.
     val dir = File(context.filesDir, "receipts")
     if (!dir.exists()) {
         dir.mkdirs()
