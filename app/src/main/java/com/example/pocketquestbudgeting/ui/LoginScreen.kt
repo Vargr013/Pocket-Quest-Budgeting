@@ -27,6 +27,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pocketquestbudgeting.R
+import androidx.compose.ui.tooling.preview.Preview
+
 
 @Composable
 fun LoginScreen(onLogin: () -> Unit) {
@@ -68,3 +70,15 @@ fun LoginScreen(onLogin: () -> Unit) {
         }
     }
 }
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun LoginScreenPreview() {
+    MaterialTheme {
+        LoginScreen(onLogin = {})
+    }
+}
+
+
+
+
