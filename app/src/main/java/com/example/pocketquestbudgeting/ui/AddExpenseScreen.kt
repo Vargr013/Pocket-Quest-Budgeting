@@ -26,14 +26,15 @@ import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.copyReceiptToAppStorage
 import java.io.File
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
-import com.example.pocketquestbudgeting.data.CategoryEntity
+import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
-import com.example.pocketquestbudgeting.data.UserEntity
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun AddExpenseScreen(onBack: () -> Unit) {
@@ -44,6 +45,8 @@ fun AddExpenseScreen(onBack: () -> Unit) {
     var description by rememberSaveable { mutableStateOf("") }
     var categoryName by rememberSaveable { mutableStateOf("General") }
     var amountText by rememberSaveable { mutableStateOf("") }
+    var categoryError by rememberSaveable { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pickImage = rememberLauncherForActivityResult(
@@ -92,7 +95,12 @@ fun AddExpenseScreen(onBack: () -> Unit) {
         )
         OutlinedTextField(
             value = categoryName,
-            onValueChange = { categoryName = it },
+            onValueChange = {
+                categoryName = it
+                categoryError = null
+            },
+            isError = categoryError != null,
+            supportingText = { categoryError?.let { Text(it) } },
             label = { Text("Category") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -129,38 +137,44 @@ fun AddExpenseScreen(onBack: () -> Unit) {
         }
         Button(
             onClick = {
+                if (saving) return@Button
+                if (categoryName.isBlank()) {
+                    categoryError = "Enter a category name."
+                    return@Button
+                }
+                saving = true
                 val amountCents = ((amountText.trim().toDoubleOrNull() ?: 0.0) * 100).toLong()
                 scope.launch {
-                    val db = DatabaseProvider.get(context)
-                    val existingUser = db.userDao().getByUsername("demo")
-                    val userId = existingUser?.id
-                        ?: db.userDao().insert(UserEntity(username = "demo"))
-                    val categories = db.categoryDao().getForUser(userId)
-                    val matching = categories.find {
-                        it.name.equals(categoryName.trim(), ignoreCase = true)
-                    }
-                    val categoryId = matching?.id
-                        ?: db.categoryDao().insert(
-                            CategoryEntity(userId = userId, name = categoryName.trim()),
+                    try {
+                        val db = DatabaseProvider.get(context)
+                        val userId = db.activeUserId()
+                        val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
+                        db.expenseDao().insert(
+                            ExpenseEntity(
+                                userId = userId,
+                                categoryId = categoryId,
+                                amount = amountCents,
+                                date = date.trim(),
+                                startTime = startTime.trim(),
+                                endTime = endTime.trim(),
+                                description = description.trim(),
+                                receiptImageUri = receiptPath,
+                            ),
                         )
-                    db.expenseDao().insert(
-                        ExpenseEntity(
-                            userId = userId,
-                            categoryId = categoryId,
-                            amount = amountCents,
-                            date = date.trim(),
-                            startTime = startTime.trim(),
-                            endTime = endTime.trim(),
-                            description = description.trim(),
-                            receiptImageUri = receiptPath,
-                        ),
-                    )
-                    onBack()
+                        onBack()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        categoryError = "Could not save the expense. Please try again."
+                    } finally {
+                        saving = false
+                    }
                 }
             },
+            enabled = !saving,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(R.string.save))
+            Text(if (saving) "Saving…" else stringResource(R.string.save))
         }
     }
 }

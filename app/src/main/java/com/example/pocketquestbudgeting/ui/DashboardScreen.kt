@@ -21,7 +21,8 @@ import com.example.pocketquestbudgeting.R
 
 @Composable
 fun DashboardScreen(onAddExpense: () -> Unit,
-                    onHistory: () -> Unit,) {
+                    onHistory: () -> Unit,
+                    onCategories: () -> Unit,) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,6 +42,9 @@ fun DashboardScreen(onAddExpense: () -> Unit,
         }
         Button(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.history))
+        }
+        Button(onClick = onCategories, modifier = Modifier.fillMaxWidth()) {
+            Text("Categories")
         }
     }
 }

@@ -6,6 +6,9 @@ import androidx.room.Query
 
 @Dao
 interface UserDao {
+    @Query("UPDATE users SET categoriesInitialized = 1 WHERE id = :userId")
+    suspend fun markCategoriesInitialized(userId: Long)
+
     @Insert
     suspend fun insert(user: UserEntity): Long
 

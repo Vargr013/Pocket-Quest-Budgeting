@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.pocketquestbudgeting.R
+import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
 import java.io.File
@@ -38,10 +39,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         val db = DatabaseProvider.get(context)
-        val user = db.userDao().getByUsername("demo")
-        if (user != null) {
-            expenses = db.expenseDao().getForUser(user.id)
-        }
+        expenses = db.expenseDao().getForUser(db.activeUserId())
     }
     Column(
         modifier = Modifier
