@@ -30,7 +30,8 @@ import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
 import java.io.File
-
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.tooling.preview.Preview
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -97,3 +98,10 @@ fun HistoryScreen(onBack: () -> Unit) {
     }
 }
 
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun HistoryScreenPreview() {
+    MaterialTheme {
+        HistoryScreen(onBack = {})
+    }
+}
