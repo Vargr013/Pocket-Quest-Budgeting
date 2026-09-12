@@ -54,6 +54,7 @@ import com.example.pocketquestbudgeting.data.copyReceiptToAppStorage
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextAlign
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -97,18 +98,27 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
         ) {
-            TextButton(onClick = onBack) {
-                Text("☰", fontSize = 28.sp, color = Teal)
-            }
             Text(
-                text = "Add Money",
+                text = "☰",
+                fontSize = 28.sp,
+                color = Teal,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 4.dp),
+            )
+            Text(
+                text = "Add Expense",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
             )
         }
 
