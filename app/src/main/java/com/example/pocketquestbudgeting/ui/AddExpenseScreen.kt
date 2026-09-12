@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -23,8 +24,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,10 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -58,10 +60,11 @@ private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF6B7C78)
 private val CardWhite = Color(0xFFFFFFFF)
 private val FieldBg = Color(0xFFE8EEEC)
-private val FieldBgSoft = Color(0x69E8EEEC) // ~41% opacity of #E8EEEC
+private val FieldBgSoft = Color(0x69E8EEEC)
 private val PrefixBg = Color(0xFFD9D9D9)
 private val Teal = Color(0xFF0F6B5C)
 private val ButtonTeal = Color(0xFF2A9D8F)
+private val ErrorRed = Color(0xFFD64545)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
@@ -85,18 +88,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
         }
     }
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = FieldBg,
-        unfocusedContainerColor = FieldBgSoft,
-        disabledContainerColor = FieldBgSoft,
-        focusedBorderColor = Color.Transparent,
-        unfocusedBorderColor = Color.Transparent,
-        errorBorderColor = Color(0xFFD64545),
-        focusedLabelColor = TextPrimary,
-        unfocusedLabelColor = TextPrimary,
-        cursorColor = Teal,
-    )
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -106,7 +97,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Header: keep Back (same onBack), Figma title styling
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -122,7 +112,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             )
         }
 
-        // Current Balance card (visual only — same as Figma)
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = CardShape,
@@ -141,7 +130,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             }
         }
 
-        // Main form card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = CardShape,
@@ -158,11 +146,11 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     Text("Add Money", fontSize = 20.sp, color = TextPrimary)
                 }
 
-                // Amount with R prefix look
                 Text("Amount", fontSize = 15.sp, color = TextPrimary)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(31.dp)
                         .background(FieldBg, CardShape),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -172,78 +160,71 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                                 PrefixBg,
                                 RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                             )
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp)
+                            .height(31.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("R", fontSize = 20.sp, color = TextPrimary)
+                        Text("R", fontSize = 16.sp, color = TextPrimary)
                     }
-                    OutlinedTextField(
+                    PlainField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        placeholder = {
-                            Text("Enter Amount", fontSize = 12.sp, color = TextSecondary)
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = fieldColors,
+                        placeholder = "Enter Amount",
+                        keyboardType = KeyboardType.Decimal,
+                        background = Color.Transparent,
                         modifier = Modifier.weight(1f),
                     )
                 }
 
-                // Note = your description field (same state / save)
                 Text("Note", fontSize = 12.sp, color = TextPrimary)
-                OutlinedTextField(
+                PlainField(
                     value = description,
                     onValueChange = { description = it },
-                    placeholder = {
-                        Text("e.g. Salary top-up", fontSize = 12.sp, color = TextSecondary)
-                    },
-                    singleLine = true,
-                    colors = fieldColors,
+                    placeholder = "e.g. Salary top-up",
+                    background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // Category (same state / validation / save)
                 Text("Category", fontSize = 12.sp, color = TextPrimary)
-                OutlinedTextField(
+                PlainField(
                     value = categoryName,
                     onValueChange = {
                         categoryName = it
                         categoryError = null
                     },
-                    placeholder = {
-                        Text("Select Category", fontSize = 12.sp, color = TextSecondary)
-                    },
+                    placeholder = "Select Category",
+                    background = FieldBgSoft,
                     isError = categoryError != null,
-                    supportingText = { categoryError?.let { Text(it) } },
-                    singleLine = true,
-                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                categoryError?.let {
+                    Text(it, fontSize = 11.sp, color = ErrorRed)
+                }
+
+                Text("Date (YYYY-MM-DD)", fontSize = 12.sp, color = TextPrimary)
+                PlainField(
+                    value = date,
+                    onValueChange = { date = it },
+                    placeholder = "YYYY-MM-DD",
+                    background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // Kept for functionality — still saved the same way
-                OutlinedTextField(
-                    value = date,
-                    onValueChange = { date = it },
-                    label = { Text("Date (YYYY-MM-DD)") },
-                    singleLine = true,
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
+                Text("Start time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
+                PlainField(
                     value = startTime,
                     onValueChange = { startTime = it },
-                    label = { Text("Start time (HH:mm)") },
-                    singleLine = true,
-                    colors = fieldColors,
+                    placeholder = "HH:mm",
+                    background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+
+                Text("End time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
+                PlainField(
                     value = endTime,
                     onValueChange = { endTime = it },
-                    label = { Text("End time (HH:mm)") },
-                    singleLine = true,
-                    colors = fieldColors,
+                    placeholder = "HH:mm",
+                    background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -277,7 +258,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             }
         }
 
-        // Figma teal "Add Money" button — same save logic as your Save button
         Button(
             onClick = {
                 if (saving) return@Button
@@ -291,7 +271,6 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     try {
                         val db = DatabaseProvider.get(context)
                         val userId = db.activeUserId()
-                        // I reused the shared category checks when saving expenses.
                         val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
                         db.expenseDao().insert(
                             ExpenseEntity(
@@ -331,6 +310,43 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun PlainField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    background: Color = FieldBgSoft,
+    height: Dp = 31.dp,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isError: Boolean = false,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        cursorBrush = SolidColor(Teal),
+        modifier = modifier
+            .height(height)
+            .background(background, CardShape)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        decorationBox = { inner ->
+            Box(contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        fontSize = 12.sp,
+                        color = if (isError) ErrorRed else TextSecondary,
+                    )
+                }
+                inner()
+            }
+        },
+    )
 }
 
 @Preview(showBackground = true, showSystemUi = true)
