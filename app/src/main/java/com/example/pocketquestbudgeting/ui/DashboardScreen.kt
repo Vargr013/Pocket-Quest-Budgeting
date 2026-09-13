@@ -60,6 +60,7 @@ fun DashboardScreen(
     onAddExpense: () -> Unit,
     onHistory: () -> Unit,
     onMenu: () -> Unit = {},
+    onCategories: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -160,6 +161,7 @@ fun DashboardScreen(
             DashboardCard {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Category Progress", fontSize = 20.sp, color = TextPrimary)
+                    TextButton(onClick = onCategories) { Text("Manage categories") }
                     Spacer(Modifier.height(12.dp))
                     CategoryRow("Groceries", "R1 392,60 of R 2 600", "56%", 0.56f, ProgressTeal)
                     Spacer(Modifier.height(8.dp))

@@ -1,5 +1,6 @@
 package com.example.pocketquestbudgeting.ui
 
+import androidx.room.withTransaction
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -281,19 +282,22 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     try {
                         val db = DatabaseProvider.get(context)
                         val userId = db.activeUserId()
-                        val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
-                        db.expenseDao().insert(
-                            ExpenseEntity(
-                                userId = userId,
-                                categoryId = categoryId,
-                                amount = amountCents,
-                                date = date.trim(),
-                                startTime = startTime.trim(),
-                                endTime = endTime.trim(),
-                                description = description.trim(),
-                                receiptImageUri = receiptPath,
-                            ),
-                        )
+                        // I kept category lookup and expense saving together so deletion cannot split them.
+                        db.withTransaction {
+                            val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
+                            db.expenseDao().insert(
+                                ExpenseEntity(
+                                    userId = userId,
+                                    categoryId = categoryId,
+                                    amount = amountCents,
+                                    date = date.trim(),
+                                    startTime = startTime.trim(),
+                                    endTime = endTime.trim(),
+                                    description = description.trim(),
+                                    receiptImageUri = receiptPath,
+                                ),
+                            )
+                        }
                         onBack()
                     } catch (cancelled: CancellationException) {
                         throw cancelled
