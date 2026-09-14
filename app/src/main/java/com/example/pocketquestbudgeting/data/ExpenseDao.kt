@@ -14,4 +14,23 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE id = :expenseId AND userId = :userId")
     suspend fun getForUserById(userId: Long, expenseId: Long): ExpenseEntity?
+
+    // I checked both IDs so this cannot update another user's expense.
+    @Query("""
+        UPDATE expenses SET categoryId = :categoryId, amount = :amount, date = :date,
+            startTime = :startTime, endTime = :endTime, description = :description,
+            receiptImageUri = :receiptImageUri
+        WHERE id = :expenseId AND userId = :userId
+    """)
+    suspend fun updateForUser(
+        userId: Long,
+        expenseId: Long,
+        categoryId: Long,
+        amount: Long,
+        date: String,
+        startTime: String,
+        endTime: String,
+        description: String,
+        receiptImageUri: String?,
+    ): Int
 }

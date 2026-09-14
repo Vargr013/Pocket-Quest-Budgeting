@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,13 +26,16 @@ import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 
 @Composable
-fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit) {
+fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit, onEdit: (Long) -> Unit = {}) {
     val context = LocalContext.current
     var expense by remember(expenseId) { mutableStateOf<ExpenseEntity?>(null) }
     var categoryName by remember(expenseId) { mutableStateOf("Category unavailable") }
     var loading by remember(expenseId) { mutableStateOf(true) }
     var error by remember(expenseId) { mutableStateOf<String?>(null) }
     var reload by remember(expenseId) { mutableStateOf(0) }
+
+    // I reloaded on return so saved edits show here.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reload++ }
 
     LaunchedEffect(expenseId, reload) {
         loading = true
@@ -71,6 +76,7 @@ fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit) {
             }
             loaded == null -> Text("Expense unavailable. It may have been removed or may not belong to the current user.")
             else -> {
+                TextButton(onClick = { onEdit(loaded.id) }) { Text("Edit") }
                 Text(formatRand(loaded.amount), style = MaterialTheme.typography.titleLarge)
                 Text("Date: ${loaded.date}")
                 Text("Start time: ${loaded.startTime}")

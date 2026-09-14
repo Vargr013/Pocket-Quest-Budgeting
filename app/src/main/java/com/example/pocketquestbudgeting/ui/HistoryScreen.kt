@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +39,9 @@ fun HistoryScreen(onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableStateOf(0) }
+
+    // I reloaded on return so the list shows edited expenses.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reload++ }
 
     LaunchedEffect(reload) {
         loading = true

@@ -104,11 +104,19 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
         composable("expense_details/{expenseId}") { entry ->
             ExpenseDetailsScreen(
                 expenseId = entry.arguments?.getString("expenseId")?.toLongOrNull(),
+                onEdit = { expenseId -> navController.navigate("edit_expense/$expenseId") },
                 onBack = {
                     if (!navController.popBackStack("history", inclusive = false)) {
                         navController.navigate("history") { launchSingleTop = true }
                     }
                 },
+            )
+        }
+        composable("edit_expense/{expenseId}") { entry ->
+            AddExpenseScreen(
+                expenseId = entry.arguments?.getString("expenseId")?.toLongOrNull() ?: -1L,
+                onBack = { navController.popBackStack() },
+                onCategories = { navController.navigate("categories") },
             )
         }
         composable("add_category") {

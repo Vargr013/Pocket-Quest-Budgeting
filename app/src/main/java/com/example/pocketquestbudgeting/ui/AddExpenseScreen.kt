@@ -1,6 +1,8 @@
 package com.example.pocketquestbudgeting.ui
 
 import androidx.room.withTransaction
+import androidx.activity.compose.BackHandler
+import java.math.BigDecimal
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,13 +53,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
 import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.copyReceiptToAppStorage
-import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
@@ -75,7 +75,15 @@ private val ErrorRed = Color(0xFFD64545)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
+fun AddExpenseScreen(
+    onBack: () -> Unit,
+    onCategories: () -> Unit = {},
+    expenseId: Long? = null,
+) {
+    val editing = expenseId != null
+    var loadedExpense by rememberSaveable(expenseId) { mutableStateOf(false) }
+    var expenseError by remember { mutableStateOf<String?>(null) }
+    var loadedUserId by rememberSaveable(expenseId) { mutableStateOf<Long?>(null) }
     var receiptPath by rememberSaveable { mutableStateOf<String?>(null) }
     var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
     var startTime by rememberSaveable { mutableStateOf("") }
@@ -92,12 +100,14 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
     var receiptError by remember { mutableStateOf<String?>(null) }
     var amountText by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+    // I blocked Back while saving so an update cannot finish after cancelling.
+    BackHandler(enabled = editing || saving) { if (!saving) onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pickImage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
-        if (uri != null) {
+        if (uri != null && !saving) {
             try {
                 val copiedPath = copyReceiptToAppStorage(context, uri)
                 if (copiedPath != null) {
@@ -110,12 +120,32 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
         }
     }
 
-    LaunchedEffect(reload) {
+    LaunchedEffect(expenseId, reload) {
         loadingCategories = true
         loadError = null
+        expenseError = null
         try {
             val db = DatabaseProvider.get(context)
             val userId = db.activeUserId()
+            if (editing && !loadedExpense) {
+                val expense = expenseId?.takeIf { it > 0 }?.let {
+                    db.expenseDao().getForUserById(userId, it)
+                }
+                if (expense == null) {
+                    expenseError = "Expense unavailable. It may have been removed or may not belong to the current user."
+                    return@LaunchedEffect
+                }
+                // I filled this once so reloading categories would not reset my edits.
+                amountText = BigDecimal.valueOf(expense.amount, 2).toPlainString()
+                date = expense.date
+                startTime = expense.startTime
+                endTime = expense.endTime
+                description = expense.description
+                selectedCategoryId = expense.categoryId
+                receiptPath = expense.receiptImageUri
+                loadedUserId = userId
+                loadedExpense = true
+            }
             db.categoryDao().observeForUser(userId).collect { savedCategories ->
                 categories = savedCategories
                 loadingCategories = false
@@ -127,10 +157,24 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            loadError = "Could not load categories. Please retry."
+            if (editing && !loadedExpense) {
+                expenseError = "Could not load this expense. Please retry or go back."
+            } else loadError = "Could not load categories. Please retry."
         } finally {
             loadingCategories = false
         }
+    }
+
+    if (editing && (!loadedExpense || expenseError != null)) {
+        Column(Modifier.fillMaxSize().background(ScreenBg).padding(24.dp)) {
+            TextButton(onClick = onBack) { Text("Back to Details") }
+            Text("Edit Expense", style = MaterialTheme.typography.titleLarge)
+            Text(expenseError ?: "Loading expense…")
+            if (expenseError != null) {
+                TextButton(onClick = { reload++ }) { Text("Retry") }
+            }
+        }
+        return
     }
 
     Column(
@@ -144,6 +188,9 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
 
+        if (editing) {
+            TextButton(onClick = onBack, enabled = !saving) { Text("Back to Details") }
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -158,7 +205,7 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                     .padding(start = 4.dp),
             )
             Text(
-                text = "Add Expense",
+                text = if (editing) "Edit Expense" else "Add Expense",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
@@ -198,7 +245,7 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("+", fontSize = 22.sp, color = Teal)
                     Spacer(Modifier.size(8.dp))
-                    Text("Add Money", fontSize = 20.sp, color = TextPrimary)
+                    Text(if (editing) "Edit expense" else "Add Money", fontSize = 20.sp, color = TextPrimary)
                 }
 
                 Text("Amount", fontSize = 15.sp, color = TextPrimary)
@@ -311,33 +358,33 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                 FieldError(errors["endTime"])
 
                 FieldError(receiptError)
+                if (receiptError != null) {
+                    TextButton(onClick = { receiptError = null }, enabled = !saving) {
+                        Text("Keep current receipt choice")
+                    }
+                }
                 val path = receiptPath
                 if (path != null) {
-                    AsyncImage(
-                        model = File(path),
-                        contentDescription = stringResource(R.string.receipt_photo),
-                        modifier = Modifier.size(160.dp),
-                    )
+                    ExpenseReceipt(path)
                     TextButton(onClick = { receiptPath = null; receiptError = null }, enabled = !saving) {
                         Text(stringResource(R.string.remove_photo))
                     }
-                } else {
-                    Button(
-                        onClick = {
-                            pickImage.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        enabled = !saving,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FieldBg,
-                            contentColor = TextPrimary,
-                        ),
-                        shape = CardShape,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.add_photo))
-                    }
+                }
+                Button(
+                    onClick = {
+                        pickImage.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    enabled = !saving,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FieldBg,
+                        contentColor = TextPrimary,
+                    ),
+                    shape = CardShape,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (path != null) "Replace photo" else stringResource(R.string.add_photo))
                 }
             }
         }
@@ -346,7 +393,7 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
         FieldError(saveError)
         Button(
             onClick = {
-                if (saving) return@Button
+                if (saving || receiptError != null) return@Button
                 val validation = validateExpense(date, startTime, endTime, description, selectedCategoryId, amountText)
                 errors = validation.errors
                 saveError = null
@@ -359,31 +406,41 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                 val savedEnd = endTime.trim()
                 val savedDescription = description.trim()
                 val savedReceipt = receiptPath
+                val editUserId = loadedUserId
                 saving = true
                 scope.launch {
                     try {
                         val db = DatabaseProvider.get(context)
-                        val userId = db.activeUserId()
+                        val userId = if (editing) requireNotNull(editUserId) else db.activeUserId()
                         // I checked the category belongs to this user and cannot be deleted while saving.
                         val saved = db.withTransaction {
                             if (db.categoryDao().getForUserById(userId, categoryId) == null) {
-                                return@withTransaction false
+                                return@withTransaction -1
                             }
-                            db.expenseDao().insert(
-                                ExpenseEntity(
-                                    userId = userId,
-                                    categoryId = categoryId,
-                                    amount = amountCents,
-                                    date = savedDate,
-                                    startTime = savedStart,
-                                    endTime = savedEnd,
-                                    description = savedDescription,
-                                    receiptImageUri = savedReceipt,
-                                ),
-                            )
-                            true
+                            if (expenseId != null) {
+                                db.expenseDao().updateForUser(
+                                    userId, expenseId, categoryId, amountCents, savedDate,
+                                    savedStart, savedEnd, savedDescription, savedReceipt,
+                                )
+                            } else {
+                                db.expenseDao().insert(
+                                    ExpenseEntity(
+                                        userId = userId,
+                                        categoryId = categoryId,
+                                        amount = amountCents,
+                                        date = savedDate,
+                                        startTime = savedStart,
+                                        endTime = savedEnd,
+                                        description = savedDescription,
+                                        receiptImageUri = savedReceipt,
+                                    ),
+                                )
+                                1
+                            }
                         }
-                        if (saved) onBack() else {
+                        if (saved == 1) onBack() else if (saved == 0) {
+                            saveError = "Expense unavailable. No changes were saved. You can go back to Details."
+                        } else {
                             selectedCategoryId = null
                             errors = errors + ("category" to "This category is no longer available. Select another one.")
                             reload++
@@ -397,7 +454,7 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                     }
                 }
             },
-            enabled = !saving && !loadingCategories && loadError == null,
+            enabled = !saving && !loadingCategories && loadError == null && receiptError == null,
             shape = CardShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
@@ -408,9 +465,12 @@ fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
                 .height(41.dp),
         ) {
             Text(
-                text = if (saving) "Saving…" else "＋  Add Money",
+                text = if (saving) "Saving…" else if (editing) "Save changes" else "＋  Add Money",
                 fontSize = 20.sp,
             )
+        }
+        if (editing) {
+            TextButton(onClick = onBack, enabled = !saving) { Text("Cancel") }
         }
     }
 }
