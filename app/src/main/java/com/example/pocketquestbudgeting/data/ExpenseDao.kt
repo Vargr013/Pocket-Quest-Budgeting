@@ -15,6 +15,24 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE userId = :userId AND date >= :startDate AND date <= :endDate ORDER BY date DESC, startTime DESC, id DESC")
     suspend fun getForUserInRange(userId: Long, startDate: String, endDate: String): List<ExpenseEntity>
 
+    // I used instr so punctuation and spaces stay literal; lower handles ASCII capitals.
+    @Query("""
+        SELECT * FROM expenses
+        WHERE userId = :userId
+        AND (:startDate IS NULL OR date >= :startDate)
+        AND (:endDate IS NULL OR date <= :endDate)
+        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:search = '' OR instr(lower(description), lower(:search)) > 0)
+        ORDER BY date DESC, startTime DESC, id DESC
+    """)
+    suspend fun getForUserFiltered(
+        userId: Long,
+        startDate: String?,
+        endDate: String?,
+        categoryId: Long?,
+        search: String,
+    ): List<ExpenseEntity>
+
     @Query("SELECT EXISTS(SELECT 1 FROM expenses WHERE userId = :userId)")
     suspend fun hasForUser(userId: Long): Boolean
 
