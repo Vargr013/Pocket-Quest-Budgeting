@@ -43,6 +43,7 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
                             error = null
                             navController.navigate("dashboard") {
                                 launchSingleTop = true
+                                popUpTo("login") { inclusive = true }
                             }
                         } else {
                             error = "Username or password is incorrect"
@@ -85,7 +86,43 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
                 onAddExpense = { navController.navigate("add_expense") },
                 onHistory = { navController.navigate("history") },
                 onCategories = { navController.navigate("categories") },
+                onMenu = { navController.navigate("menu") },
             )
+        }
+        composable("menu") {
+            MenuScreen(
+                onBack = { navController.popBackStack() },
+                onAchievements = { navController.navigate("achievements") },
+                onWhatItWorth = { navController.navigate("what_it_worth") },
+                onDailySpend = { navController.navigate("daily_spend") },
+                onCategorySpend = { navController.navigate("category_spend") },
+                onAddSavingGoal = { navController.navigate("add_saving_goal") },
+                onRemoveSavingGoal = { navController.navigate("remove_saving_goal") },
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo("dashboard") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable("achievements") {
+            AchievementsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("what_it_worth") {
+            WhatItWorthScreen(onBack = { navController.popBackStack() })
+        }
+        composable("daily_spend") {
+            DailySpendingGraphScreen(onBack = { navController.popBackStack() })
+        }
+        composable("category_spend") {
+            CategorySpendingSummaryScreen(onBack = { navController.popBackStack() })
+        }
+        composable("add_saving_goal") {
+            AddSavingGoalScreen(onBack = { navController.popBackStack() })
+        }
+        composable("remove_saving_goal") {
+            RemoveSavingGoalScreen(onBack = { navController.popBackStack() })
         }
         composable("add_expense") {
             AddExpenseScreen(

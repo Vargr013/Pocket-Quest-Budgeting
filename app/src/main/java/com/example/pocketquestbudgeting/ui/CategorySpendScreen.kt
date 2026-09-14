@@ -23,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,7 +77,7 @@ private val categories = listOf(
 private enum class PeriodTab { Daily, Monthly, Custom }
 
 @Composable
-fun CategorySpendingSummaryScreen() {
+fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
     var selectedTab by remember { mutableStateOf(PeriodTab.Monthly) }
 
     Column(
@@ -89,6 +90,9 @@ fun CategorySpendingSummaryScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        TextButton(onClick = onBack) {
+    Text("Back")
+}
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -249,6 +253,6 @@ private fun CategoryRow(cat: CategorySpend) {
 @Composable
 private fun CategorySpendingSummaryScreenPreview() {
     MaterialTheme {
-        CategorySpendingSummaryScreen()
+        CategorySpendingSummaryScreen(onBack = {})
     }
 }

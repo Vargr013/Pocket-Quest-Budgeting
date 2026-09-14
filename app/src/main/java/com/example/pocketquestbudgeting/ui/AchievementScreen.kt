@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +45,7 @@ private val ProgressFill = Color(0xFFE07A5F)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AchievementsScreen() {
+fun AchievementsScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -54,6 +55,9 @@ fun AchievementsScreen() {
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        TextButton(onClick = onBack) {
+            Text("Back")
+        }
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -252,6 +256,6 @@ private fun BadgePlaceholder(size: androidx.compose.ui.unit.Dp) {
 @Composable
 private fun AchievementsScreenPreview() {
     MaterialTheme {
-        AchievementsScreen()
+        AchievementsScreen(onBack = {})
     }
 }

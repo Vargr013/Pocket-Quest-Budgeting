@@ -23,6 +23,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +51,7 @@ private val RemoveOrange = Color(0xFFC45C26)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun RemoveSavingGoalScreen() {
+fun RemoveSavingGoalScreen(onBack: () -> Unit) {
     var savingGoal by rememberSaveable { mutableStateOf("") }
 
     Column(
@@ -63,6 +64,9 @@ fun RemoveSavingGoalScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        TextButton(onClick = onBack) {
+    Text("Back")
+}
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -177,6 +181,6 @@ private fun PlainField(
 @Composable
 private fun RemoveSavingGoalScreenPreview() {
     MaterialTheme {
-        RemoveSavingGoalScreen()
+        RemoveSavingGoalScreen(onBack = {})
     }
 }

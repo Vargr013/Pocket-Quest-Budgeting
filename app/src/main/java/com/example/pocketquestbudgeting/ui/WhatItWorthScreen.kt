@@ -21,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,7 @@ private val CardBorder = Color(0xFF7D0000)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun WhatItWorthScreen() {
+fun WhatItWorthScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -52,6 +53,9 @@ fun WhatItWorthScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        TextButton(onClick = onBack) {
+    Text("Back")
+}
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -195,6 +199,6 @@ private fun ComparisonCard(label: String) {
 @Composable
 private fun WhatItWorthScreenPreview() {
     MaterialTheme {
-        WhatItWorthScreen()
+        WhatItWorthScreen(onBack = {})
     }
 }

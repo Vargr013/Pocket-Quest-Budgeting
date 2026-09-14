@@ -61,6 +61,7 @@ fun DashboardScreen(
     onHistory: () -> Unit,
     onMenu: () -> Unit = {},
     onCategories: () -> Unit = {},
+
 ) {
     Box(
         modifier = Modifier
