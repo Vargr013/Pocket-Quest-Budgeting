@@ -16,12 +16,19 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "pocket-quest.db",
-            ).addMigrations(object : Migration(1, 2) {
-                override fun migrate(db: SupportSQLiteDatabase) {
-                    // I added the setup flag without clearing existing data.
-                    db.execSQL("ALTER TABLE users ADD COLUMN categoriesInitialized INTEGER NOT NULL DEFAULT 0")
-                }
-            }).build().also { instance = it }
+            ).addMigrations(
+                object : Migration(1, 2) {
+                    override fun migrate(db: SupportSQLiteDatabase) {
+                        // I added the setup flag without clearing existing data.
+                        db.execSQL("ALTER TABLE users ADD COLUMN categoriesInitialized INTEGER NOT NULL DEFAULT 0")
+                    }
+                },
+                object : Migration(2, 3) {
+                    override fun migrate(db: SupportSQLiteDatabase) {
+                        db.execSQL("ALTER TABLE users ADD COLUMN password TEXT NOT NULL DEFAULT ''")
+                    }
+                },
+            ).build().also { instance = it }
         }
     }
 }

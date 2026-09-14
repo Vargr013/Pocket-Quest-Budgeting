@@ -39,18 +39,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.R
 
-private val LoginTeal = Color(0xFF0F6B5C)
+private val RegisterTeal = Color(0xFF0F6B5C)
 private val LinkBlue = Color(0xFF013673)
 
 @Composable
-fun LoginScreen(
-    onLogin: (username: String, password: String) -> Unit,
+fun RegisterScreen(
+    onRegister: (username: String, password: String, confirmPassword: String) -> Unit,
     errorMessage: String? = null,
-    onRegister: () -> Unit = {},
-    onNeedHelp: () -> Unit = {},
+    onBackToLogin: () -> Unit = {},
 ) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -68,7 +68,7 @@ fun LoginScreen(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = stringResource(R.string.app_name),
+                text = stringResource(R.string.register_ac),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
             )
@@ -101,6 +101,16 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = { Text(stringResource(R.string.confirm_password)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
@@ -113,10 +123,10 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { onLogin(username, password) },
+                onClick = { onRegister(username, password, confirmPassword) },
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = LoginTeal,
+                    containerColor = RegisterTeal,
                     contentColor = Color.White,
                 ),
                 modifier = Modifier
@@ -124,27 +134,17 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(39.dp),
             ) {
-                Text(text = stringResource(R.string.login))
+                Text(text = stringResource(R.string.register))
             }
 
             Text(
-                text = stringResource(R.string.register_ac),
+                text = stringResource(R.string.back_to_login),
                 color = LinkBlue,
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
                 modifier = Modifier
                     .padding(top = 8.dp)
-                    .clickable(onClick = onRegister),
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Text(
-                text = stringResource(R.string.need_help_),
-                color = LinkBlue,
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
-                modifier = Modifier.clickable(onClick = onNeedHelp),
+                    .clickable(onClick = onBackToLogin),
             )
         }
     }
@@ -152,8 +152,8 @@ fun LoginScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-private fun LoginScreenPreview() {
+private fun RegisterScreenPreview() {
     MaterialTheme {
-        LoginScreen(onLogin = { _, _ -> })
+        RegisterScreen(onRegister = { _, _, _ -> })
     }
 }
