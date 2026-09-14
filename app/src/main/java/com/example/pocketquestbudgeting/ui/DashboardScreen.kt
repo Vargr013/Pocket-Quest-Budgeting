@@ -61,6 +61,7 @@ fun DashboardScreen(
     onHistory: () -> Unit,
     onMenu: () -> Unit = {},
     onCategories: () -> Unit = {},
+    onCategorySpend: () -> Unit = {},
 
 ) {
     Box(
@@ -158,20 +159,11 @@ fun DashboardScreen(
                 }
             }
 
-            // Category Progress
             DashboardCard {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Category Progress", fontSize = 20.sp, color = TextPrimary)
-                    TextButton(onClick = onCategories) { Text("Manage categories") }
-                    Spacer(Modifier.height(12.dp))
-                    CategoryRow("Groceries", "R1 392,60 of R 2 600", "56%", 0.56f, ProgressTeal)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Entertainment", "R464 of R400", "130%", 1f, ProgressRed, showWarning = true)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Transport", "R1 160,50 of R1 450", "70%", 0.70f, ProgressAmber, showWarning = true)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Rent", "R2 200 of R2 200", "100%", 1f, ProgressRed, showWarning = true)
-                }
+                DashboardCategorySpending(
+                    onCategories = onCategories,
+                    onSummary = onCategorySpend,
+                )
             }
 
             // Recent Expenses
@@ -233,56 +225,6 @@ private fun DashboardCard(content: @Composable () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         content = { content() },
     )
-}
-
-@Composable
-private fun CategoryRow(
-    name: String,
-    subtitle: String,
-    percent: String,
-    progress: Float,
-    barColor: Color,
-    showWarning: Boolean = false,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(RowBg, CardShape)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(name, fontSize = 15.sp, color = TextPrimary)
-                Text(subtitle, fontSize = 10.sp, color = TextSecondary)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(percent, fontSize = 15.sp, color = TextPrimary)
-                if (showWarning) {
-                    Text(
-                        text = "!",
-                        color = barColor,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp),
-            color = barColor,
-            trackColor = ProgressTrack,
-            strokeCap = StrokeCap.Round,
-        )
-    }
 }
 
 @Composable

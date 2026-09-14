@@ -8,6 +8,24 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
+    // I kept dates in the join so categories without spending still appear.
+    @Query("""
+        SELECT c.id AS categoryId, c.name AS categoryName,
+            COALESCE(SUM(e.amount), 0) AS totalCents
+        FROM categories AS c
+        LEFT JOIN expenses AS e ON e.categoryId = c.id AND e.userId = :userId
+            AND (:startDate IS NULL OR e.date >= :startDate)
+            AND (:endDate IS NULL OR e.date <= :endDate)
+        WHERE c.userId = :userId
+        GROUP BY c.id, c.name
+        ORDER BY c.name COLLATE NOCASE, c.id
+    """)
+    suspend fun getSpendingForUser(
+        userId: Long,
+        startDate: String?,
+        endDate: String?,
+    ): List<CategorySpendingTotal>
+
     @Insert
     suspend fun insert(category: CategoryEntity): Long
 

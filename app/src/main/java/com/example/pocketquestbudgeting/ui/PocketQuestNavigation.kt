@@ -86,6 +86,7 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
                 onAddExpense = { navController.navigate("add_expense") },
                 onHistory = { navController.navigate("history") },
                 onCategories = { navController.navigate("categories") },
+                onCategorySpend = { navController.navigate("category_spend") },
                 onMenu = { navController.navigate("menu") },
             )
         }
