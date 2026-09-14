@@ -107,7 +107,10 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
                 onEdit = { expenseId -> navController.navigate("edit_expense/$expenseId") },
                 onBack = {
                     if (!navController.popBackStack("history", inclusive = false)) {
-                        navController.navigate("history") { launchSingleTop = true }
+                        navController.navigate("history") {
+                            popUpTo("expense_details/{expenseId}") { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 },
             )

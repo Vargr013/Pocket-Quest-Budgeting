@@ -21,7 +21,7 @@ import com.example.pocketquestbudgeting.R
 import java.io.File
 
 @Composable
-internal fun ExpenseReceipt(path: String?) {
+internal fun ExpenseReceipt(path: String?, enabled: Boolean = true) {
     var showing by remember(path) { mutableStateOf(false) }
     var failed by remember(path) { mutableStateOf(false) }
 
@@ -38,9 +38,9 @@ internal fun ExpenseReceipt(path: String?) {
                 model = File(path),
                 contentDescription = stringResource(R.string.receipt_photo),
                 onError = { failed = true },
-                modifier = Modifier.size(56.dp).clickable { showing = true },
+                modifier = Modifier.size(56.dp).clickable(enabled = enabled) { showing = true },
             )
-            TextButton(onClick = { showing = true }) { Text("View receipt") }
+            TextButton(onClick = { showing = true }, enabled = enabled) { Text("View receipt") }
         }
     }
     if (showing) {

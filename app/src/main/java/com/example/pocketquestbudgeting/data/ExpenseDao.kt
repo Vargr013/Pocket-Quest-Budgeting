@@ -15,6 +15,10 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE id = :expenseId AND userId = :userId")
     suspend fun getForUserById(userId: Long, expenseId: Long): ExpenseEntity?
 
+    // I scoped deletion itself so another user's expense stays safe.
+    @Query("DELETE FROM expenses WHERE id = :expenseId AND userId = :userId")
+    suspend fun deleteForUser(userId: Long, expenseId: Long): Int
+
     // I checked both IDs so this cannot update another user's expense.
     @Query("""
         UPDATE expenses SET categoryId = :categoryId, amount = :amount, date = :date,
