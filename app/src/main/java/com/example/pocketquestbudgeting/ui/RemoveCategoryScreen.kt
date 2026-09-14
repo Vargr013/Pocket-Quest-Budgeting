@@ -57,7 +57,7 @@ private val RemoveOrange = Color(0xFFC45C26)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun RemoveCategoryScreen(onBack: () -> Unit = {}) {
+fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}) {
     val context = LocalContext.current
     val db = remember(context) { DatabaseProvider.get(context) }
     val scope = rememberCoroutineScope()
@@ -193,6 +193,7 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}) {
             }
         }
 
+        TextButton(onClick = onAddCategory, enabled = !saving) { Text("Create category") }
         Text("Using the demo user. Login is not connected yet.", color = TextSecondary)
         if (loading) Text("Loading categories...")
         else if (userId != null && categories.isEmpty()) Text("No categories yet.")

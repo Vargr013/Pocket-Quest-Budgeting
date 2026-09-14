@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
@@ -13,6 +14,13 @@ interface CategoryDao {
     // I limited the list to this user and ignored capitals when sorting.
     @Query("SELECT * FROM categories WHERE userId = :userId ORDER BY name COLLATE NOCASE, id")
     suspend fun getForUser(userId: Long): List<CategoryEntity>
+
+    // I observed the saved list so returning from category changes refreshes the picker.
+    @Query("SELECT * FROM categories WHERE userId = :userId ORDER BY name COLLATE NOCASE, id")
+    fun observeForUser(userId: Long): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories WHERE id = :categoryId AND userId = :userId")
+    suspend fun getForUserById(userId: Long, categoryId: Long): CategoryEntity?
 
     @Query("UPDATE categories SET name = :name WHERE id = :categoryId AND userId = :userId")
     suspend fun updateName(userId: Long, categoryId: Long, name: String): Int
@@ -59,7 +67,7 @@ interface CategoryDao {
         return insert(CategoryEntity(userId = userId, name = trimmed))
     }
 
-    // I reused the category ID for existing names from the expense form.
+    // I reused existing categories when setting up the demo defaults.
     @Transaction
     suspend fun getOrCreate(userId: Long, name: String): Long {
         return create(userId, name) ?: getForUser(userId).first {

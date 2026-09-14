@@ -33,13 +33,22 @@ fun PocketQuestNavigation(modifier: Modifier = Modifier) {
             )
         }
         composable("add_expense") {
-            AddExpenseScreen(onBack = { navController.popBackStack() })
+            AddExpenseScreen(
+                onBack = { navController.popBackStack() },
+                onCategories = { navController.navigate("categories") },
+            )
         }
         composable("history") {
             HistoryScreen(onBack = { navController.popBackStack() })
         }
+        composable("add_category") {
+            AddCategoryScreen(onBack = { navController.popBackStack() })
+        }
         composable("categories") {
-            RemoveCategoryScreen(onBack = { navController.popBackStack() })
+            RemoveCategoryScreen(
+                onBack = { navController.popBackStack() },
+                onAddCategory = { navController.navigate("add_category") },
+            )
         }
     }
 }

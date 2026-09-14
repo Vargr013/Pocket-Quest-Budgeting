@@ -1,6 +1,11 @@
 package com.example.pocketquestbudgeting.ui
 
 import androidx.room.withTransaction
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.LaunchedEffect
+import com.example.pocketquestbudgeting.data.CategoryEntity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,15 +75,22 @@ private val ErrorRed = Color(0xFFD64545)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AddExpenseScreen(onBack: () -> Unit) {
+fun AddExpenseScreen(onBack: () -> Unit, onCategories: () -> Unit = {}) {
     var receiptPath by rememberSaveable { mutableStateOf<String?>(null) }
-    var date by rememberSaveable { mutableStateOf("") }
+    var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
     var startTime by rememberSaveable { mutableStateOf("") }
     var endTime by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
-    var categoryName by rememberSaveable { mutableStateOf("General") }
+    var selectedCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var categories by remember { mutableStateOf<List<CategoryEntity>>(emptyList()) }
+    var expanded by remember { mutableStateOf(false) }
+    var loadingCategories by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableStateOf(0) }
+    var errors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var receiptError by remember { mutableStateOf<String?>(null) }
     var amountText by rememberSaveable { mutableStateOf("") }
-    var categoryError by rememberSaveable { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -86,7 +98,38 @@ fun AddExpenseScreen(onBack: () -> Unit) {
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
         if (uri != null) {
-            receiptPath = copyReceiptToAppStorage(context, uri)
+            try {
+                val copiedPath = copyReceiptToAppStorage(context, uri)
+                if (copiedPath != null) {
+                    receiptPath = copiedPath
+                    receiptError = null
+                } else receiptError = "Could not attach the receipt. Please try again."
+            } catch (_: Exception) {
+                receiptError = "Could not attach the receipt. Please try again."
+            }
+        }
+    }
+
+    LaunchedEffect(reload) {
+        loadingCategories = true
+        loadError = null
+        try {
+            val db = DatabaseProvider.get(context)
+            val userId = db.activeUserId()
+            db.categoryDao().observeForUser(userId).collect { savedCategories ->
+                categories = savedCategories
+                loadingCategories = false
+                if (selectedCategoryId != null && savedCategories.none { it.id == selectedCategoryId }) {
+                    selectedCategoryId = null
+                    errors = errors + ("category" to "This category is no longer available. Select another one.")
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            loadError = "Could not load categories. Please retry."
+        } finally {
+            loadingCategories = false
         }
     }
 
@@ -94,6 +137,7 @@ fun AddExpenseScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 10.dp)
             .padding(top = 8.dp, bottom = 24.dp),
@@ -179,7 +223,8 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     }
                     PlainField(
                         value = amountText,
-                        onValueChange = { amountText = it },
+                        onValueChange = { amountText = it; errors = errors - "amount" },
+                        enabled = !saving,
                         placeholder = "Enter Amount",
                         keyboardType = KeyboardType.Decimal,
                         background = Color.Transparent,
@@ -187,58 +232,85 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                     )
                 }
 
+                Text("Use a dot for decimals, e.g. 12.34.", fontSize = 11.sp, color = TextSecondary)
+                FieldError(errors["amount"])
+
                 Text("Note", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { description = it; errors = errors - "description" },
+                    enabled = !saving,
                     placeholder = "e.g. Salary top-up",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                FieldError(errors["description"])
 
                 Text("Category", fontSize = 12.sp, color = TextPrimary)
-                PlainField(
-                    value = categoryName,
-                    onValueChange = {
-                        categoryName = it
-                        categoryError = null
-                    },
-                    placeholder = "Select Category",
-                    background = FieldBgSoft,
-                    isError = categoryError != null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                categoryError?.let {
-                    Text(it, fontSize = 11.sp, color = ErrorRed)
+                Box(modifier = Modifier.fillMaxWidth().background(FieldBgSoft, CardShape)) {
+                    TextButton(
+                        onClick = { expanded = true },
+                        enabled = !saving && !loadingCategories && loadError == null && categories.isNotEmpty(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(categories.firstOrNull { it.id == selectedCategoryId }?.name ?: "Select category") }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.name) },
+                                onClick = {
+                                    selectedCategoryId = category.id
+                                    expanded = false
+                                    errors = errors - "category"
+                                },
+                            )
+                        }
+                    }
                 }
+                FieldError(errors["category"])
+                if (loadingCategories) Text("Loading categories...", fontSize = 12.sp)
+                loadError?.let {
+                    FieldError(it)
+                    TextButton(onClick = { reload++ }, enabled = !saving) { Text("Retry categories") }
+                }
+                if (!loadingCategories && loadError == null && categories.isEmpty()) {
+                    Text("Create a category before saving an expense.", fontSize = 12.sp)
+                }
+                TextButton(onClick = onCategories, enabled = !saving) { Text("Categories") }
 
                 Text("Date (YYYY-MM-DD)", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = date,
-                    onValueChange = { date = it },
+                    onValueChange = { date = it; errors = errors - "date" },
+                    enabled = !saving,
                     placeholder = "YYYY-MM-DD",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                FieldError(errors["date"])
 
                 Text("Start time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = startTime,
-                    onValueChange = { startTime = it },
+                    onValueChange = { startTime = it; errors = errors - "startTime" },
+                    enabled = !saving,
                     placeholder = "HH:mm",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                FieldError(errors["startTime"])
 
                 Text("End time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = endTime,
-                    onValueChange = { endTime = it },
+                    onValueChange = { endTime = it; errors = errors - "endTime" },
+                    enabled = !saving,
                     placeholder = "HH:mm",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                FieldError(errors["endTime"])
 
+                FieldError(receiptError)
                 val path = receiptPath
                 if (path != null) {
                     AsyncImage(
@@ -246,7 +318,7 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                         contentDescription = stringResource(R.string.receipt_photo),
                         modifier = Modifier.size(160.dp),
                     )
-                    TextButton(onClick = { receiptPath = null }) {
+                    TextButton(onClick = { receiptPath = null; receiptError = null }, enabled = !saving) {
                         Text(stringResource(R.string.remove_photo))
                     }
                 } else {
@@ -256,6 +328,7 @@ fun AddExpenseScreen(onBack: () -> Unit) {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
+                        enabled = !saving,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = FieldBg,
                             contentColor = TextPrimary,
@@ -269,46 +342,62 @@ fun AddExpenseScreen(onBack: () -> Unit) {
             }
         }
 
+        Text("Using the demo user. Login is not connected yet.", fontSize = 12.sp, color = TextSecondary)
+        FieldError(saveError)
         Button(
             onClick = {
                 if (saving) return@Button
-                if (categoryName.isBlank()) {
-                    categoryError = "Enter a category name."
-                    return@Button
-                }
+                val validation = validateExpense(date, startTime, endTime, description, selectedCategoryId, amountText)
+                errors = validation.errors
+                saveError = null
+                if (validation.errors.isNotEmpty()) return@Button
+                val categoryId = selectedCategoryId ?: return@Button
+                val amountCents = validation.amountCents ?: return@Button
+                // I kept a copy of the entered values before saving.
+                val savedDate = date.trim()
+                val savedStart = startTime.trim()
+                val savedEnd = endTime.trim()
+                val savedDescription = description.trim()
+                val savedReceipt = receiptPath
                 saving = true
-                val amountCents = ((amountText.trim().toDoubleOrNull() ?: 0.0) * 100).toLong()
                 scope.launch {
                     try {
                         val db = DatabaseProvider.get(context)
                         val userId = db.activeUserId()
-                        // I kept category lookup and expense saving together so deletion cannot split them.
-                        db.withTransaction {
-                            val categoryId = db.categoryDao().getOrCreate(userId, categoryName)
+                        // I checked the category belongs to this user and cannot be deleted while saving.
+                        val saved = db.withTransaction {
+                            if (db.categoryDao().getForUserById(userId, categoryId) == null) {
+                                return@withTransaction false
+                            }
                             db.expenseDao().insert(
                                 ExpenseEntity(
                                     userId = userId,
                                     categoryId = categoryId,
                                     amount = amountCents,
-                                    date = date.trim(),
-                                    startTime = startTime.trim(),
-                                    endTime = endTime.trim(),
-                                    description = description.trim(),
-                                    receiptImageUri = receiptPath,
+                                    date = savedDate,
+                                    startTime = savedStart,
+                                    endTime = savedEnd,
+                                    description = savedDescription,
+                                    receiptImageUri = savedReceipt,
                                 ),
                             )
+                            true
                         }
-                        onBack()
+                        if (saved) onBack() else {
+                            selectedCategoryId = null
+                            errors = errors + ("category" to "This category is no longer available. Select another one.")
+                            reload++
+                        }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        categoryError = "Could not save the expense. Please try again."
+                        saveError = "Could not save the expense to the database. Your entries and receipt are kept. Please try again."
                     } finally {
                         saving = false
                     }
                 }
             },
-            enabled = !saving,
+            enabled = !saving && !loadingCategories && loadError == null,
             shape = CardShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
@@ -336,11 +425,13 @@ private fun PlainField(
     height: Dp = 31.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
     isError: Boolean = false,
+    enabled: Boolean = true,
 ) {
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
+        enabled = enabled,
         textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         cursorBrush = SolidColor(Teal),
@@ -361,6 +452,11 @@ private fun PlainField(
             }
         },
     )
+}
+
+@Composable
+private fun FieldError(message: String?) {
+    message?.let { Text(it, fontSize = 12.sp, color = ErrorRed) }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

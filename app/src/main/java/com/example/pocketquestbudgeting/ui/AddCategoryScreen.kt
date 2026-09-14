@@ -1,5 +1,14 @@
 package com.example.pocketquestbudgeting.ui
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.TextButton
+import com.example.pocketquestbudgeting.data.DatabaseProvider
+import com.example.pocketquestbudgeting.data.activeUserId
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,22 +53,24 @@ private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF6B7C78)
 private val CardWhite = Color(0xFFFFFFFF)
-private val FieldBg = Color(0xFFE8EEEC)
 private val FieldBgSoft = Color(0x69E8EEEC)
-private val PrefixBg = Color(0xFFD9D9D9)
 private val Teal = Color(0xFF0F6B5C)
 private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AddCategoryScreen() {
+fun AddCategoryScreen(onBack: () -> Unit = {}) {
     var categoryName by rememberSaveable { mutableStateOf("") }
-    var budgetAmount by rememberSaveable { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 10.dp)
             .padding(top = 8.dp, bottom = 24.dp),
@@ -109,46 +120,45 @@ fun AddCategoryScreen() {
                 Text("Category Name", fontSize = 15.sp, color = TextPrimary)
                 PlainField(
                     value = categoryName,
-                    onValueChange = { categoryName = it },
+                    onValueChange = { categoryName = it; error = null },
+                    enabled = !saving,
                     placeholder = "e.g. Emergency Cash",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Text("Total Budget Amount", fontSize = 15.sp, color = TextPrimary)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(31.dp)
-                        .background(FieldBg, CardShape),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                PrefixBg,
-                                RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
-                            )
-                            .padding(horizontal = 14.dp)
-                            .height(31.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("R", fontSize = 16.sp, color = TextPrimary)
-                    }
-                    PlainField(
-                        value = budgetAmount,
-                        onValueChange = { budgetAmount = it },
-                        placeholder = "Enter Amount",
-                        keyboardType = KeyboardType.Decimal,
-                        background = Color.Transparent,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
             }
         }
 
         Button(
-            onClick = { },
+            onClick = {
+                if (saving) return@Button
+                val name = categoryName.trim()
+                if (name.isBlank()) {
+                    error = "Enter a category name."
+                    return@Button
+                }
+                saving = true
+                error = null
+                scope.launch {
+                    try {
+                        val db = DatabaseProvider.get(context)
+                        val id = db.activeUserId()
+                        if (db.categoryDao().create(id, name) == null) {
+                            error = "You already have a category with that name."
+                        } else onBack()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        error = "Could not create the category. Please try again."
+                    } finally {
+                        saving = false
+                    }
+                }
+            },
+            enabled = !saving,
             shape = CardShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
@@ -159,8 +169,9 @@ fun AddCategoryScreen() {
                 .widthIn(max = 315.dp)
                 .height(41.dp),
         ) {
-            Text("＋  Add Category", fontSize = 20.sp)
+            Text(if (saving) "Saving..." else "＋  Add Category", fontSize = 20.sp)
         }
+        TextButton(onClick = onBack, enabled = !saving) { Text("Back to Categories") }
     }
 }
 
@@ -173,11 +184,13 @@ private fun PlainField(
     background: Color = FieldBgSoft,
     height: Dp = 31.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true,
 ) {
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
+        enabled = enabled,
         textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         cursorBrush = SolidColor(Teal),
