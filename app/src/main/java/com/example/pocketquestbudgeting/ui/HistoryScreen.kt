@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,24 +22,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
-import java.io.File
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.CancellationException
 @Composable
-fun HistoryScreen(onBack: () -> Unit) {
+fun HistoryScreen(onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     var expenses by remember { mutableStateOf<List<ExpenseEntity>>(emptyList()) }
-    var selectedPath by remember { mutableStateOf<String?>(null) }
+    var categoryNames by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        val db = DatabaseProvider.get(context)
-        // I reused the save flow's user lookup to keep history scoped to that user.
-        expenses = db.expenseDao().getForUser(db.activeUserId())
+    LaunchedEffect(reload) {
+        loading = true
+        error = null
+        try {
+            val db = DatabaseProvider.get(context)
+            // I reused the save flow's user lookup for both expenses and category names.
+            val userId = db.activeUserId()
+            val loadedExpenses = db.expenseDao().getForUser(userId)
+            val loadedCategories = db.categoryDao().getForUser(userId)
+            expenses = loadedExpenses
+            categoryNames = loadedCategories.associate { it.id to it.name }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = "Could not load History. Please try again."
+        } finally {
+            loading = false
+        }
     }
     Column(
         modifier = Modifier
@@ -52,49 +66,34 @@ fun HistoryScreen(onBack: () -> Unit) {
         TextButton(onClick = onBack) {
             Text(stringResource(R.string.back))
         }
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            items(expenses) { expense ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "${expense.description}  ${expense.date}",
-                        modifier = Modifier.weight(1f),
-                    )
-                    val photoPath = expense.receiptImageUri
-                    if (!photoPath.isNullOrBlank()) {
-                        AsyncImage(
-                            model = File(photoPath),
-                            contentDescription = stringResource(R.string.receipt_photo),
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clickable { selectedPath = photoPath },
-                        )
+        Text("History", style = MaterialTheme.typography.titleLarge)
+        when {
+            loading -> Text("Loading expenses...")
+            error != null -> {
+                Text(error!!)
+                TextButton(onClick = { reload++ }) { Text("Retry") }
+            }
+            expenses.isEmpty() -> Text("No expenses yet. Saved expenses will appear here.")
+            else -> LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(expenses, key = { it.id }) { expense ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { onExpenseSelected(expense.id) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(formatRand(expense.amount), style = MaterialTheme.typography.titleMedium)
+                            Text(expense.date)
+                            Text(expense.description)
+                            Text(categoryNames[expense.categoryId] ?: "Category unavailable")
+                        }
+                        ExpenseReceipt(expense.receiptImageUri)
                     }
                 }
             }
         }
-    }
-    if (selectedPath != null) {
-        AlertDialog(
-            onDismissRequest = { selectedPath = null },
-            confirmButton = {
-                TextButton(onClick = { selectedPath = null }) {
-                    Text(stringResource(R.string.close))
-                }
-            },
-            text = {
-                AsyncImage(
-                    model = File(selectedPath!!),
-                    contentDescription = stringResource(R.string.receipt_photo),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-        )
     }
 }
 
