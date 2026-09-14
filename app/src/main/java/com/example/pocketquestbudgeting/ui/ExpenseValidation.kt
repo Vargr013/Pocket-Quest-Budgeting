@@ -52,7 +52,7 @@ internal fun parseExpenseCents(text: String): Long? {
     }
 }
 
-private fun validExpenseDate(date: String): Boolean {
+internal fun validExpenseDate(date: String): Boolean {
     if (!Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}").matches(date)) return false
     val year = date.substring(0, 4).toInt()
     val month = date.substring(5, 7).toInt()

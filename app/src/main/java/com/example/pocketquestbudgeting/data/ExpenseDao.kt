@@ -12,6 +12,12 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE userId = :userId ORDER BY date DESC, startTime DESC, id DESC")
     suspend fun getForUser(userId: Long): List<ExpenseEntity>
 
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND date >= :startDate AND date <= :endDate ORDER BY date DESC, startTime DESC, id DESC")
+    suspend fun getForUserInRange(userId: Long, startDate: String, endDate: String): List<ExpenseEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM expenses WHERE userId = :userId)")
+    suspend fun hasForUser(userId: Long): Boolean
+
     @Query("SELECT * FROM expenses WHERE id = :expenseId AND userId = :userId")
     suspend fun getForUserById(userId: Long, expenseId: Long): ExpenseEntity?
 

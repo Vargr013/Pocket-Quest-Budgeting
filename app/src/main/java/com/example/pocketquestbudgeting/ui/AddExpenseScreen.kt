@@ -324,13 +324,11 @@ fun AddExpenseScreen(
                 }
                 TextButton(onClick = onCategories, enabled = !saving) { Text("Categories") }
 
-                Text("Date (YYYY-MM-DD)", fontSize = 12.sp, color = TextPrimary)
-                PlainField(
+                ExpenseDateSelector(
                     value = date,
                     onValueChange = { date = it; errors = errors - "date" },
+                    label = "Date (YYYY-MM-DD)",
                     enabled = !saving,
-                    placeholder = "YYYY-MM-DD",
-                    background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FieldError(errors["date"])
