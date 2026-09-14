@@ -4,6 +4,10 @@ import android.database.sqlite.SQLiteException
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +30,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,9 +51,9 @@ import kotlin.coroutines.coroutineContext
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
-private val TextSecondary = Color(0xFF6B7C78)
-private val Teal = Color(0xFF0F6B5C)
+private val TextSecondary = Color(0xFF3F4944)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -51,6 +63,7 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
     var draftStart by rememberSaveable { mutableStateOf("") }
     var draftEnd by rememberSaveable { mutableStateOf("") }
     var rangeError by rememberSaveable { mutableStateOf<String?>(null) }
+    var customOpen by rememberSaveable { mutableStateOf(false) }
     var reload by remember { mutableStateOf(0) }
 
     fun selectShortcut(shortcut: String) {
@@ -58,10 +71,15 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
         period = shortcut
         startDate = range.start
         endDate = range.end
+        customOpen = false
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (period == "week" || period == "month") selectShortcut(period)
+        if (period == "week" || period == "month") {
+            val range = historyShortcutRange(period)
+            startDate = range.start
+            endDate = range.end
+        }
         reload++
     }
 
@@ -110,91 +128,117 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
         }
     }
 
+    val periodLabel = when (period) {
+        "week" -> "Current week"
+        "month" -> "Current month"
+        "custom" -> "Custom range"
+        else -> "All dates"
+    }
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(ScreenBg).padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().background(ScreenBg),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text("Category Spending Summary", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
+            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back") }
+                Text("Spending summary", style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary, modifier = Modifier.semantics { heading() })
+                Text("See where your money goes.", color = TextSecondary)
+            }
         }
         item {
-            val label = when (period) {
-                "week" -> "Current week"
-                "month" -> "Current month"
-                "custom" -> "Custom range"
-                else -> "All dates"
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Active period: $label", color = TextPrimary)
-                if (period != "all") Text("$startDate to $endDate (inclusive)", color = TextSecondary)
-                TextButton(onClick = { selectShortcut("week") }) { Text("Current week") }
-                TextButton(onClick = { selectShortcut("month") }) { Text("Current month") }
-                Text("Custom range (inclusive)", color = TextPrimary)
-                ExpenseDateSelector(
-                    value = draftStart, onValueChange = { draftStart = it },
-                    label = "Start date (YYYY-MM-DD)", modifier = Modifier.fillMaxWidth(),
-                )
-                ExpenseDateSelector(
-                    value = draftEnd, onValueChange = { draftEnd = it },
-                    label = "End date (YYYY-MM-DD)", modifier = Modifier.fillMaxWidth(),
-                )
-                rangeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = {
-                    rangeError = historyRangeError(draftStart, draftEnd)
-                    if (rangeError == null) {
-                        startDate = draftStart.trim()
-                        endDate = draftEnd.trim()
-                        period = "custom"
+            Card(
+                modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Choose a period", style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() })
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("all" to "All dates", "week" to "Current week", "month" to "Current month").forEach { (value, label) ->
+                            FilterChip(
+                                selected = period == value,
+                                onClick = {
+                                    if (value == "all") {
+                                        period = "all"
+                                        startDate = ""
+                                        endDate = ""
+                                        customOpen = false
+                                    } else selectShortcut(value)
+                                },
+                                label = { Text(label) },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            )
+                        }
                     }
-                }) { Text("Apply custom range") }
-                TextButton(onClick = {
-                    period = "all"
-                    startDate = ""
-                    endDate = ""
-                    draftStart = ""
-                    draftEnd = ""
-                    rangeError = null
-                    reload++
-                }) { Text("Reset to All dates") }
+                    OutlinedButton(
+                        onClick = { customOpen = !customOpen },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) { Text(if (customOpen) "Hide custom dates" else "Choose custom dates") }
+                    if (customOpen) {
+                        Text("Choose both dates, then apply. Your current results stay active until then.",
+                            style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        ExpenseDateSelector(
+                            value = draftStart, onValueChange = { draftStart = it; rangeError = null },
+                            label = "Start date (YYYY-MM-DD)", modifier = Modifier.fillMaxWidth(),
+                        )
+                        ExpenseDateSelector(
+                            value = draftEnd, onValueChange = { draftEnd = it; rangeError = null },
+                            label = "End date (YYYY-MM-DD)", modifier = Modifier.fillMaxWidth(),
+                        )
+                        rangeError?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                        }
+                        Button(onClick = {
+                            rangeError = historyRangeError(draftStart, draftEnd)
+                            if (rangeError == null) {
+                                startDate = draftStart.trim()
+                                endDate = draftEnd.trim()
+                                period = "custom"
+                                customOpen = false
+                            }
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Apply date range") }
+                    }
+                    Text("Active period: $periodLabel", style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary)
+                    if (period != "all") Text("$startDate to $endDate • Both dates included",
+                        style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    TextButton(onClick = {
+                        period = "all"
+                        startDate = ""
+                        endDate = ""
+                        draftStart = ""
+                        draftEnd = ""
+                        rangeError = null
+                        customOpen = false
+                        reload++
+                    }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reset to all dates") }
+                }
             }
         }
         when {
-            loading -> item { Text("Loading category spending...", color = TextSecondary) }
-            error != null -> item {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { reload++ }) { Text("Retry") }
-            }
+            loading -> item { SpendingLoadState(modifier = Modifier.widthIn(max = 720.dp)) }
+            error != null -> item { SpendingLoadState(message = error, onRetry = { reload++ }, modifier = Modifier.widthIn(max = 720.dp)) }
             else -> {
+                item { SpendingTotalCard(totalCents, periodLabel, Modifier.widthIn(max = 720.dp)) }
                 item {
-                    SpendingCard {
-                        Text("Total spent", color = TextSecondary)
-                        Text(formatRand(totalCents), style = MaterialTheme.typography.headlineSmall, color = Teal)
+                    Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("By category", style = MaterialTheme.typography.titleLarge, color = TextPrimary,
+                            modifier = Modifier.semantics { heading() })
+                        Text("Each percentage is a share of spending in this period.",
+                            style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        if (categories.isEmpty()) Text("No categories yet. Create one from Manage categories.", color = TextSecondary)
+                        else if (totalCents == 0L) Text("No spending in this period. Your categories are shown below.", color = TextSecondary)
                     }
                 }
-                if (categories.isEmpty()) {
-                    item { Text("No categories yet. Create categories from Manage categories.", color = TextSecondary) }
-                } else if (totalCents == 0L) {
-                    item { Text("No spending in this period.", color = TextSecondary) }
-                }
                 items(categories, key = { it.categoryId }) { category ->
-                    CategorySpendingRow(category, totalCents)
+                    CategorySpendingRow(category, totalCents, Modifier.widthIn(max = 720.dp))
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SpendingCard(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            content()
         }
     }
 }

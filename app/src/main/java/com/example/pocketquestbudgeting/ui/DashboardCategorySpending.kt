@@ -3,6 +3,9 @@ package com.example.pocketquestbudgeting.ui
 import android.database.sqlite.SQLiteException
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,7 +17,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -26,6 +30,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun DashboardCategorySpending(onCategories: () -> Unit, onSummary: () -> Unit) {
     val context = LocalContext.current
@@ -72,25 +77,26 @@ internal fun DashboardCategorySpending(onCategories: () -> Unit, onSummary: () -
         }
     }
 
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Category spending", style = MaterialTheme.typography.titleLarge, color = Color(0xFF1A2B28))
-        Text("Current month", color = Color(0xFF1A2B28))
-        Text("${month.start} to ${month.end} (inclusive)", color = Color(0xFF6B7C78))
-        TextButton(onClick = onCategories) { Text("Manage categories") }
-        TextButton(onClick = onSummary) { Text("Spending summary") }
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Category spending", style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.semantics { heading() })
+        Text("${month.start} to ${month.end} • Both dates included",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onSummary, modifier = Modifier.heightIn(min = 48.dp)) { Text("Spending summary") }
+            TextButton(onClick = onCategories, modifier = Modifier.heightIn(min = 48.dp)) { Text("Manage categories") }
+        }
         when {
-            loading -> Text("Loading category spending...")
-            error != null -> {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { reload++ }) { Text("Retry") }
-            }
+            loading -> SpendingLoadState()
+            error != null -> SpendingLoadState(message = error, onRetry = { reload++ })
             else -> {
-                Text("Total spent", color = Color(0xFF6B7C78))
-                Text(formatRand(totalCents), style = MaterialTheme.typography.headlineSmall, color = Color(0xFF0F6B5C))
+                SpendingTotalCard(totalCents, "Current month")
+                Text("Share of this month's spending", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (categories.isEmpty()) {
                     Text("No categories yet. Add one using Manage categories.")
                 } else if (totalCents == 0L) {
-                    Text("No spending this month.")
+                    Text("No spending this month. Your categories are shown below.")
                 }
                 categories.forEach { category -> CategorySpendingRow(category, totalCents) }
             }
