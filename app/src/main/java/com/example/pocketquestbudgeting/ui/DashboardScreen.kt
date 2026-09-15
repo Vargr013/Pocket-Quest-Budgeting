@@ -1,6 +1,5 @@
 package com.example.pocketquestbudgeting.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,11 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -166,53 +162,8 @@ fun DashboardScreen(
                 }
             }
 
-            // Budgets / Daily Budget
             DashboardCard {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Budgets", fontSize = 20.sp, color = TextPrimary)
-                    Spacer(Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(RowBg, CardShape)
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Daily Budget", fontSize = 20.sp, color = TextPrimary)
-                                Text("R350", fontSize = 20.sp, color = TextPrimary)
-                                Text("of R400", fontSize = 15.sp, color = TextSecondary)
-                                Spacer(Modifier.height(16.dp))
-                                LinearProgressIndicator(
-                                    progress = { 350f / 400f },
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.85f)
-                                        .height(14.dp),
-                                    color = ProgressAmber,
-                                    trackColor = ProgressTrack,
-                                    strokeCap = StrokeCap.Round,
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(0.85f),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Text("R50 remaining", fontSize = 10.sp, color = TextSecondary)
-                                    Text("3 hours left", fontSize = 10.sp, color = TextSecondary)
-                                }
-                            }
-                            CircularBudgetRing(
-                                progress = 350f / 400f,
-                                color = ProgressAmber,
-                                modifier = Modifier.size(110.dp),
-                            )
-                        }
-                    }
-                }
+                MonthlySpendingGoals()
             }
 
             DashboardCard {
@@ -418,38 +369,6 @@ private fun SavingGoalRow(title: String, subtitle: String) {
     ) {
         Text(title, fontSize = 15.sp, color = TextPrimary)
         Text(subtitle, fontSize = 10.sp, color = TextSecondary)
-    }
-}
-
-@Composable
-private fun CircularBudgetRing(
-    progress: Float,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier) {
-        val stroke = 10.dp.toPx()
-        val diameter = size.minDimension - stroke
-        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
-        val arcSize = Size(diameter, diameter)
-        drawArc(
-            color = Color.Black,
-            startAngle = -90f,
-            sweepAngle = 360f,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-        drawArc(
-            color = color,
-            startAngle = -90f,
-            sweepAngle = 360f * progress.coerceIn(0f, 1f),
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
     }
 }
 
