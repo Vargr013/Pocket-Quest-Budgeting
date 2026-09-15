@@ -53,7 +53,9 @@ private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF6B7C78)
 private val CardWhite = Color(0xFFFFFFFF)
+private val FieldBg = Color(0xFFE8EEEC)
 private val FieldBgSoft = Color(0x69E8EEEC)
+private val PrefixBg = Color(0xFFD9D9D9)
 private val Teal = Color(0xFF0F6B5C)
 private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardShape = RoundedCornerShape(20.dp)
@@ -61,6 +63,8 @@ private val CardShape = RoundedCornerShape(20.dp)
 @Composable
 fun AddCategoryScreen(onBack: () -> Unit = {}) {
     var categoryName by rememberSaveable { mutableStateOf("") }
+    var minBudget by rememberSaveable { mutableStateOf("") }
+    var maxBudget by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -127,6 +131,21 @@ fun AddCategoryScreen(onBack: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                Text("Minimum Monthly Budget", fontSize = 15.sp, color = TextPrimary)
+                AmountField(
+                    value = minBudget,
+                    onValueChange = { minBudget = it; error = null },
+                    enabled = !saving,
+                )
+
+                Text("Maximum Monthly Budget", fontSize = 15.sp, color = TextPrimary)
+                AmountField(
+                    value = maxBudget,
+                    onValueChange = { maxBudget = it; error = null },
+                    enabled = !saving,
+                )
+                Text("Use a dot for decimals, e.g. 12.34. Enter 0 if a limit is not set.", fontSize = 11.sp, color = TextSecondary)
+
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             }
@@ -136,25 +155,37 @@ fun AddCategoryScreen(onBack: () -> Unit = {}) {
             onClick = {
                 if (saving) return@Button
                 val name = categoryName.trim()
-                if (name.isBlank()) {
-                    error = "Enter a category name."
-                    return@Button
-                }
-                saving = true
-                error = null
-                scope.launch {
-                    try {
-                        val db = DatabaseProvider.get(context)
-                        val id = db.activeUserId()
-                        if (db.categoryDao().create(id, name) == null) {
-                            error = "You already have a category with that name."
-                        } else onBack()
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        error = "Could not create the category. Please try again."
-                    } finally {
-                        saving = false
+                val minCents = parseBudgetCents(minBudget)
+                val maxCents = parseBudgetCents(maxBudget)
+                when {
+                    name.isBlank() -> error = "Enter a category name."
+                    minBudget.isBlank() -> error = "Enter a minimum monthly budget."
+                    maxBudget.isBlank() -> error = "Enter a maximum monthly budget."
+                    minCents == null || maxCents == null ->
+                        error = "Enter amounts that are zero or more, using a dot and up to 2 decimal places."
+                    minCents > maxCents -> error = "Minimum cannot be greater than the maximum."
+                    else -> {
+                        saving = true
+                        error = null
+                        scope.launch {
+                            try {
+                                val db = DatabaseProvider.get(context)
+                                val id = db.activeUserId()
+                                if (db.categoryDao().create(id, name, minCents, maxCents) == null) {
+                                    error = "You already have a category with that name."
+                                } else {
+                                    onBack()
+                                }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (invalid: IllegalArgumentException) {
+                                error = invalid.message ?: "Enter amounts that are zero or more."
+                            } catch (_: Exception) {
+                                error = "Could not create the category. Please try again."
+                            } finally {
+                                saving = false
+                            }
+                        }
                     }
                 }
             },
@@ -172,6 +203,43 @@ fun AddCategoryScreen(onBack: () -> Unit = {}) {
             Text(if (saving) "Saving..." else "＋  Add Category", fontSize = 20.sp)
         }
         TextButton(onClick = onBack, enabled = !saving) { Text("Back to Categories") }
+    }
+}
+
+@Composable
+private fun AmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(31.dp)
+            .background(FieldBg, CardShape),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    PrefixBg,
+                    RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
+                )
+                .padding(horizontal = 14.dp)
+                .height(31.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("R", fontSize = 16.sp, color = TextPrimary)
+        }
+        PlainField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            placeholder = "Enter Amount",
+            keyboardType = KeyboardType.Decimal,
+            background = Color.Transparent,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

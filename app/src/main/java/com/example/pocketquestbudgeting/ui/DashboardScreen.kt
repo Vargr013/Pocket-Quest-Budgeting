@@ -29,8 +29,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -41,7 +50,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.pocketquestbudgeting.R
+import com.example.pocketquestbudgeting.data.CategoryMonthProgress
+import com.example.pocketquestbudgeting.data.DatabaseProvider
+import com.example.pocketquestbudgeting.data.activeUserId
+import com.example.pocketquestbudgeting.data.currentMonthBounds
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 
 private val DashboardBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -62,6 +80,44 @@ fun DashboardScreen(
     onMenu: () -> Unit = {},
     onCategories: () -> Unit = {},
 ) {
+    val inspecting = LocalInspectionMode.current
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var categoryRows by remember { mutableStateOf(if (inspecting) previewCategoryRows else emptyList()) }
+    var categoriesLoading by remember { mutableStateOf(!inspecting) }
+    var categoriesError by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableIntStateOf(1) }
+    var seenResume by remember { mutableStateOf(false) }
+
+    if (!inspecting) {
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    // I ignored the first resume so opening the screen does not load twice.
+                    if (seenResume) reload++ else seenResume = true
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        LaunchedEffect(reload) {
+            categoriesLoading = true
+            try {
+                val db = DatabaseProvider.get(context)
+                val userId = db.activeUserId()
+                val (monthStart, monthEnd) = currentMonthBounds()
+                categoryRows = db.categoryDao().getMonthProgress(userId, monthStart, monthEnd)
+                categoriesError = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                categoriesError = "Could not load category budgets."
+            } finally {
+                categoriesLoading = false
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -163,13 +219,18 @@ fun DashboardScreen(
                     Text("Category Progress", fontSize = 20.sp, color = TextPrimary)
                     TextButton(onClick = onCategories) { Text("Manage categories") }
                     Spacer(Modifier.height(12.dp))
-                    CategoryRow("Groceries", "R1 392,60 of R 2 600", "56%", 0.56f, ProgressTeal)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Entertainment", "R464 of R400", "130%", 1f, ProgressRed, showWarning = true)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Transport", "R1 160,50 of R1 450", "70%", 0.70f, ProgressAmber, showWarning = true)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryRow("Rent", "R2 200 of R2 200", "100%", 1f, ProgressRed, showWarning = true)
+                    when {
+                        categoriesLoading -> Text("Loading categories...", color = TextSecondary)
+                        categoriesError != null -> {
+                            Text(categoriesError.orEmpty(), color = ProgressRed)
+                            TextButton(onClick = { reload++ }) { Text("Retry") }
+                        }
+                        categoryRows.isEmpty() -> Text("No categories yet.", color = TextSecondary)
+                        else -> categoryRows.forEachIndexed { index, row ->
+                            if (index > 0) Spacer(Modifier.height(8.dp))
+                            CategoryProgressRow(row)
+                        }
+                    }
                 }
             }
 
@@ -231,6 +292,46 @@ private fun DashboardCard(content: @Composable () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = CardWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         content = { content() },
+    )
+}
+
+@Composable
+private fun CategoryProgressRow(row: CategoryMonthProgress) {
+    val overMax = row.maxMonthlyBudget > 0 && row.spent >= row.maxMonthlyBudget
+    val underMin = row.minMonthlyBudget > 0 && row.spent < row.minMonthlyBudget
+    val barColor = when {
+        overMax -> ProgressRed
+        underMin -> ProgressAmber
+        else -> ProgressTeal
+    }
+    val progress = if (row.maxMonthlyBudget == 0L) {
+        0f
+    } else {
+        (row.spent.toFloat() / row.maxMonthlyBudget).coerceIn(0f, 1f)
+    }
+    val percent = if (row.maxMonthlyBudget == 0L) {
+        "—"
+    } else {
+        "${((row.spent * 100.0) / row.maxMonthlyBudget).roundToInt()}%"
+    }
+    val spent = formatBudgetAmount(row.spent)
+    val ofMax = if (row.maxMonthlyBudget == 0L) {
+        "$spent spent, no max set"
+    } else {
+        "$spent of ${formatBudgetAmount(row.maxMonthlyBudget)}"
+    }
+    val subtitle = if (row.minMonthlyBudget == 0L) {
+        ofMax
+    } else {
+        "$ofMax, min ${formatBudgetAmount(row.minMonthlyBudget)}"
+    }
+    CategoryRow(
+        name = row.name,
+        subtitle = subtitle,
+        percent = percent,
+        progress = progress,
+        barColor = barColor,
+        showWarning = overMax || underMin,
     )
 }
 
@@ -346,6 +447,13 @@ private fun CircularBudgetRing(
         )
     }
 }
+
+private val previewCategoryRows = listOf(
+    CategoryMonthProgress(1, "Groceries", 1_000_00, 2_600_00, 1_392_60),
+    CategoryMonthProgress(2, "Entertainment", 100_00, 400_00, 464_00),
+    CategoryMonthProgress(3, "Transport", 500_00, 1_450_00, 1_160_50),
+    CategoryMonthProgress(4, "Rent", 2_200_00, 2_200_00, 2_200_00),
+)
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

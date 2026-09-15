@@ -22,6 +22,26 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :categoryId AND userId = :userId")
     suspend fun getForUserById(userId: Long, categoryId: Long): CategoryEntity?
 
+    // I kept categories with no expenses this month, and treated a missing sum as zero.
+    @Query("""
+        SELECT
+            c.id AS categoryId,
+            c.name AS name,
+            c.minMonthlyBudget AS minMonthlyBudget,
+            c.maxMonthlyBudget AS maxMonthlyBudget,
+            COALESCE(SUM(e.amount), 0) AS spent
+        FROM categories AS c
+        LEFT JOIN expenses AS e
+            ON e.categoryId = c.id
+           AND e.userId = c.userId
+           AND e.date >= :monthStart
+           AND e.date < :monthEnd
+        WHERE c.userId = :userId
+        GROUP BY c.id
+        ORDER BY c.name COLLATE NOCASE, c.id
+    """)
+    suspend fun getMonthProgress(userId: Long, monthStart: String, monthEnd: String): List<CategoryMonthProgress>
+
     @Query("UPDATE categories SET name = :name WHERE id = :categoryId AND userId = :userId")
     suspend fun updateName(userId: Long, categoryId: Long, name: String): Int
 
@@ -38,6 +58,34 @@ interface CategoryDao {
         // I only changed the name; expenses still point to the same category ID.
         return if (updateName(userId, categoryId, trimmed) == 1) CategoryChangeResult.SUCCESS
         else CategoryChangeResult.NOT_FOUND
+    }
+
+    @Query("""
+        UPDATE categories
+        SET minMonthlyBudget = :minMonthlyBudget, maxMonthlyBudget = :maxMonthlyBudget
+        WHERE id = :categoryId AND userId = :userId
+    """)
+    suspend fun updateBudgets(
+        userId: Long,
+        categoryId: Long,
+        minMonthlyBudget: Long,
+        maxMonthlyBudget: Long,
+    ): Int
+
+    @Transaction
+    suspend fun setBudgets(
+        userId: Long,
+        categoryId: Long,
+        minMonthlyBudget: Long,
+        maxMonthlyBudget: Long,
+    ): CategoryChangeResult {
+        requireValidBudgets(minMonthlyBudget, maxMonthlyBudget)
+        if (getForUserById(userId, categoryId) == null) return CategoryChangeResult.NOT_FOUND
+        return if (updateBudgets(userId, categoryId, minMonthlyBudget, maxMonthlyBudget) == 1) {
+            CategoryChangeResult.SUCCESS
+        } else {
+            CategoryChangeResult.NOT_FOUND
+        }
     }
 
     // I put the expense check in the DELETE itself so other callers cannot skip it.
@@ -57,14 +105,27 @@ interface CategoryDao {
 
     // I kept the check and save together to prevent duplicates from overlapping saves.
     @Transaction
-    suspend fun create(userId: Long, name: String): Long? {
+    suspend fun create(
+        userId: Long,
+        name: String,
+        minMonthlyBudget: Long = 0,
+        maxMonthlyBudget: Long = 0,
+    ): Long? {
         val trimmed = name.trim()
         require(trimmed.isNotBlank()) { "Enter a category name." }
+        requireValidBudgets(minMonthlyBudget, maxMonthlyBudget)
         // I used Kotlin for comparison because SQLite's NOCASE only covers ASCII letters.
         if (getForUser(userId).any { it.name.trim().equals(trimmed, ignoreCase = true) }) {
             return null
         }
-        return insert(CategoryEntity(userId = userId, name = trimmed))
+        return insert(
+            CategoryEntity(
+                userId = userId,
+                name = trimmed,
+                minMonthlyBudget = minMonthlyBudget,
+                maxMonthlyBudget = maxMonthlyBudget,
+            ),
+        )
     }
 
     // I reused existing categories when setting up the demo defaults.
@@ -77,3 +138,8 @@ interface CategoryDao {
 }
 
 enum class CategoryChangeResult { SUCCESS, DUPLICATE, NOT_FOUND, IN_USE }
+
+private fun requireValidBudgets(minMonthlyBudget: Long, maxMonthlyBudget: Long) {
+    require(minMonthlyBudget >= 0 && maxMonthlyBudget >= 0) { "Enter amounts that are zero or more." }
+    require(minMonthlyBudget <= maxMonthlyBudget) { "Minimum cannot be greater than the maximum." }
+}
