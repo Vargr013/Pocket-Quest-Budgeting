@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -67,6 +69,8 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
     var expanded by remember { mutableStateOf(false) }
     var action by remember { mutableStateOf<CategoryAction?>(null) }
     var categoryName by rememberSaveable { mutableStateOf("") }
+    var minBudget by rememberSaveable { mutableStateOf("") }
+    var maxBudget by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var saving by remember { mutableStateOf(false) }
@@ -99,10 +103,16 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
         error = null
         scope.launch {
             try {
-                val result = if (currentAction == CategoryAction.RENAME) {
-                    db.categoryDao().rename(id, category.id, categoryName)
-                } else {
-                    db.categoryDao().delete(id, category.id)
+                val result = when (currentAction) {
+                    CategoryAction.RENAME -> db.categoryDao().rename(id, category.id, categoryName)
+                    CategoryAction.SET_BUDGETS -> {
+                        val minCents = parseBudgetCents(minBudget)
+                            ?: throw IllegalArgumentException("Enter a minimum monthly budget using a dot and up to 2 decimal places.")
+                        val maxCents = parseBudgetCents(maxBudget)
+                            ?: throw IllegalArgumentException("Enter a maximum monthly budget using a dot and up to 2 decimal places.")
+                        db.categoryDao().setBudgets(id, category.id, minCents, maxCents)
+                    }
+                    CategoryAction.DELETE -> db.categoryDao().delete(id, category.id)
                 }
                 when (result) {
                     CategoryChangeResult.SUCCESS -> {
@@ -118,8 +128,8 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (invalid: IllegalArgumentException) {
-                error = invalid.message ?: "Enter a category name."
+            }             catch (invalid: IllegalArgumentException) {
+                error = invalid.message ?: "Could not save the category change."
             } catch (_: Exception) {
                 error = "Could not save the category change. Please try again."
             } finally {
@@ -209,6 +219,15 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
                 action = CategoryAction.RENAME
             },
         ) { Text("Rename category") }
+        TextButton(
+            enabled = selected != null && !loading && !saving && error == null,
+            onClick = {
+                minBudget = centsToBudgetInput(selected?.minMonthlyBudget ?: 0)
+                maxBudget = centsToBudgetInput(selected?.maxMonthlyBudget ?: 0)
+                error = null
+                action = CategoryAction.SET_BUDGETS
+            },
+        ) { Text("Set budgets") }
         Button(
             enabled = selected != null && !loading && !saving && error == null,
             onClick = { error = null; action = CategoryAction.DELETE },
@@ -226,30 +245,66 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
         }
     }
     if (action != null && selected != null) {
-        val renaming = action == CategoryAction.RENAME
+        val currentAction = action
         AlertDialog(
             onDismissRequest = { if (!saving) { action = null; error = null } },
-            title = { Text(if (renaming) "Rename category" else "Delete category?") },
+            title = {
+                Text(
+                    when (currentAction) {
+                        CategoryAction.RENAME -> "Rename category"
+                        CategoryAction.SET_BUDGETS -> "Set monthly budgets"
+                        else -> "Delete category?"
+                    },
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (renaming) {
-                        OutlinedTextField(
-                            value = categoryName,
-                            onValueChange = { categoryName = it; error = null },
-                            label = { Text("Category name") },
-                            singleLine = true,
-                            enabled = !saving,
-                            isError = error != null,
-                        )
-                    } else {
-                        Text("Delete \"${selected.name}\"? This cannot be undone.")
+                    when (currentAction) {
+                        CategoryAction.RENAME -> {
+                            OutlinedTextField(
+                                value = categoryName,
+                                onValueChange = { categoryName = it; error = null },
+                                label = { Text("Category name") },
+                                singleLine = true,
+                                enabled = !saving,
+                                isError = error != null,
+                            )
+                        }
+                        CategoryAction.SET_BUDGETS -> {
+                            OutlinedTextField(
+                                value = minBudget,
+                                onValueChange = { minBudget = it; error = null },
+                                label = { Text("Minimum monthly budget") },
+                                singleLine = true,
+                                enabled = !saving,
+                                isError = error != null,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            )
+                            OutlinedTextField(
+                                value = maxBudget,
+                                onValueChange = { maxBudget = it; error = null },
+                                label = { Text("Maximum monthly budget") },
+                                singleLine = true,
+                                enabled = !saving,
+                                isError = error != null,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            )
+                            Text("Use a dot for decimals, e.g. 12.34. Enter 0 if a limit is not set.")
+                        }
+                        else -> Text("Delete \"${selected.name}\"? This cannot be undone.")
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { saveChange() }, enabled = !saving) {
-                    Text(if (saving) "Saving..." else if (renaming) "Save" else "Delete")
+                    Text(
+                        when {
+                            saving -> "Saving..."
+                            currentAction == CategoryAction.DELETE -> "Delete"
+                            else -> "Save"
+                        },
+                    )
                 }
             },
             dismissButton = {
@@ -259,7 +314,7 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
     }
 }
 
-private enum class CategoryAction { RENAME, DELETE }
+private enum class CategoryAction { RENAME, SET_BUDGETS, DELETE }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
