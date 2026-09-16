@@ -55,9 +55,13 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
 
     NavHost(
         navController = navController,
+
+        // I opened Login when no account was stored, and Dashboard after a successful login.
         startDestination = if (userId == null) "login" else "dashboard",
+        
         modifier = modifier,
     ) {
+        // I hid the main routes until login so Back could not open Dashboard without an account.
         if (userId == null) {
             composable("login") {
                 val context = LocalContext.current
@@ -82,6 +86,7 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
                                     error = "Username or password is incorrect"
                                 } else {
                                     db.initializeUserCategories(user.id)
+                                    // I stored the Room user id so expenses and History belong to the signed-in account.
                                     onLogin(user.id)
                                 }
                             } catch (cancelled: CancellationException) {
@@ -149,6 +154,7 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
                 )
             }
             composable("menu") {
+                // I kept navigation in this file; Menu only reports which item was tapped.
                 MenuScreen(
                     onBack = { navController.popBackStack() },
                     onAchievements = { navController.navigate("achievements") },
@@ -157,6 +163,8 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
                     onCategorySpend = { navController.navigate("category_spend") },
                     onAddSavingGoal = { navController.navigate("add_saving_goal") },
                     onRemoveSavingGoal = { navController.navigate("remove_saving_goal") },
+
+                    // I cleared userId in the parent so the login graph is shown again.
                     onLogout = onLogout,
                 )
             }
@@ -200,6 +208,7 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
                     expenseId = entry.arguments?.getString("expenseId")?.toLongOrNull(),
                     onEdit = { expenseId -> navController.navigate("edit_expense/$expenseId") },
                     onBack = {
+                        // I returned to History by route name in case Details was not opened from that screen.
                         if (!navController.popBackStack("history", inclusive = false)) {
                             navController.navigate("history") {
                                 popUpTo("expense_details/{expenseId}") { inclusive = true }

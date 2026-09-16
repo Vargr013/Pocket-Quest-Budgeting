@@ -65,6 +65,7 @@ fun AchievementsScreen(onBack: () -> Unit) {
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
+            // I added Back so this screen can return to the menu.
             TextButton(
                 onClick = onBack,
                 modifier = Modifier.align(Alignment.CenterStart),

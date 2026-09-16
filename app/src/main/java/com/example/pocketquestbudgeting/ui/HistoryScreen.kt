@@ -82,6 +82,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
     var categoryMenuOpen by remember { mutableStateOf(false) }
     var reload by remember { mutableStateOf(0) }
 
+// I recalculated week and month from today's date so those shortcuts stay current.
     fun selectShortcut(shortcut: String) {
         val range = historyShortcutRange(shortcut)
         filter = shortcut
@@ -89,6 +90,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
         endDate = range.end
     }
 
+// I reloaded on resume so a new expense appears after returning from Add expense.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (filter == "week" || filter == "month") selectShortcut(filter)
         reload++
@@ -236,7 +238,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("Custom range (inclusive)", fontSize = 12.sp, color = TextPrimary)
 
-                // Keep your date selector logic; wrap visually
+                // I applied custom dates only after Apply so typing a range would not filter on every change.
                 ExpenseDateSelector(
                     value = draftStart,
                     onValueChange = { draftStart = it },
@@ -415,6 +417,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                             color = TextSecondary,
                         )
                     }
+                    // I showed the saved receipt from this list so a stored photo can still be opened.
                     ExpenseReceipt(expense.receiptImageUri)
                 }
             }

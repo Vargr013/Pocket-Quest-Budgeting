@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
+// I used callbacks instead of NavController so this screen does not own routes.
 fun MenuScreen(onBack: () -> Unit,
                onAchievements: () -> Unit,
                onWhatItWorth: () -> Unit,
