@@ -1,5 +1,6 @@
 package com.example.pocketquestbudgeting.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,10 +29,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pocketquestbudgeting.R
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -55,30 +60,26 @@ fun AchievementsScreen(onBack: () -> Unit) {
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TextButton(onClick = onBack) {
-            Text("Back")
-        }
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
             Text(
                 text = "Achievements",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 72.dp),
             )
         }
 
@@ -114,8 +115,10 @@ fun AchievementsScreen(onBack: () -> Unit) {
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    // Placeholder for streak artwork from Figma
-                    BadgePlaceholder(size = 100.dp)
+                    BadgePlaceholder(
+                        size = 100.dp,
+                        drawableRes = R.drawable.piggy_bank,
+                    )
                 }
             }
         }
@@ -149,16 +152,16 @@ fun AchievementsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    BadgePlaceholder(size = 112.dp)
-                    BadgePlaceholder(size = 112.dp)
+                    BadgePlaceholder(size = 112.dp, drawableRes = R.drawable.icon_coffee)
+                    BadgePlaceholder(size = 112.dp, drawableRes = R.drawable.icon_burger)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    BadgePlaceholder(size = 112.dp)
-                    BadgePlaceholder(size = 112.dp)
+                    BadgePlaceholder(size = 112.dp, drawableRes = R.drawable.icon_ticket)
+                    BadgePlaceholder(size = 112.dp, drawableRes = R.drawable.piggy_bank)
                 }
             }
         }
@@ -198,7 +201,10 @@ fun AchievementsScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BadgePlaceholder(size = 70.dp)
+                        BadgePlaceholder(
+                            size = 70.dp,
+                            drawableRes = R.drawable.icon_coffee,
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -242,14 +248,29 @@ fun AchievementsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun BadgePlaceholder(size: androidx.compose.ui.unit.Dp) {
+private fun BadgePlaceholder(
+    size: Dp,
+    drawableRes: Int? = null,
+) {
     Box(
         modifier = Modifier
             .size(size)
             .border(2.dp, Color.Black.copy(alpha = 0.15f), CircleShape)
             .padding(12.dp)
             .background(BadgeGray, CircleShape),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        if (drawableRes != null) {
+            Image(
+                painter = painterResource(drawableRes),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+            )
+        }
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
