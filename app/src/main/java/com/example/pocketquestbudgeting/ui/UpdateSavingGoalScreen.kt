@@ -4,11 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -23,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +55,7 @@ private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun UpdateSavingGoalScreen() {
+fun UpdateSavingGoalScreen(onBack: () -> Unit = {}) {
     var selectedGoal by rememberSaveable { mutableStateOf("") }
     var goalName by rememberSaveable { mutableStateOf("") }
     var targetAmount by rememberSaveable { mutableStateOf("") }
@@ -64,26 +67,24 @@ fun UpdateSavingGoalScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 10.dp)
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
             Text(
                 text = "Update Saving Goal",
                 fontSize = 32.sp,
@@ -92,7 +93,7 @@ fun UpdateSavingGoalScreen() {
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(horizontal = 36.dp),
+                    .padding(horizontal = 72.dp),
             )
         }
 
@@ -112,7 +113,6 @@ fun UpdateSavingGoalScreen() {
                     Text("Update Saving Goal", fontSize = 20.sp, color = TextPrimary)
                 }
 
-                // 1) Which goal are we editing?
                 Text("Select Saving Goal", fontSize = 15.sp, color = TextPrimary)
                 Box(modifier = Modifier.fillMaxWidth()) {
                     PlainField(
@@ -132,7 +132,6 @@ fun UpdateSavingGoalScreen() {
                     )
                 }
 
-                // 2) Rename if needed
                 Text("Goal Name", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = goalName,
@@ -142,7 +141,6 @@ fun UpdateSavingGoalScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // 3) Change the target total
                 Text("Target Amount", fontSize = 15.sp, color = TextPrimary)
                 AmountField(
                     value = targetAmount,
@@ -150,7 +148,6 @@ fun UpdateSavingGoalScreen() {
                     placeholder = "Enter new target",
                 )
 
-                // 4) Add money toward the goal (better than retyping "current saved")
                 Text("Amount to Add", fontSize = 15.sp, color = TextPrimary)
                 AmountField(
                     value = amountToAdd,
@@ -158,7 +155,6 @@ fun UpdateSavingGoalScreen() {
                     placeholder = "Enter amount to add",
                 )
 
-                // 5) Move the deadline
                 Text("Target Date", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = targetDate,
@@ -168,7 +164,6 @@ fun UpdateSavingGoalScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // 6) Optional note about this update
                 Text("Note", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = note,
@@ -183,6 +178,7 @@ fun UpdateSavingGoalScreen() {
         Button(
             onClick = { },
             shape = CardShape,
+            contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
                 contentColor = TextPrimary,
@@ -192,7 +188,12 @@ fun UpdateSavingGoalScreen() {
                 .widthIn(max = 315.dp)
                 .height(41.dp),
         ) {
-            Text("＋  Update Saving Goal", fontSize = 20.sp)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("＋  Update Saving Goal", fontSize = 20.sp)
+            }
         }
     }
 }
@@ -206,7 +207,7 @@ private fun AmountField(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(31.dp)
+            .height(35.dp)
             .background(FieldBg, CardShape),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -217,7 +218,7 @@ private fun AmountField(
                     RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                 )
                 .padding(horizontal = 14.dp)
-                .height(31.dp),
+                .height(35.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text("R", fontSize = 16.sp, color = TextPrimary)
@@ -240,35 +241,39 @@ private fun PlainField(
     placeholder: String,
     modifier: Modifier = Modifier,
     background: Color = FieldBgSoft,
-    height: Dp = 31.dp,
+    height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(Teal),
+    Box(
         modifier = modifier
             .height(height)
             .background(background, CardShape)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(placeholder, fontSize = 12.sp, color = TextSecondary)
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(placeholder, fontSize = 12.sp, color = TextSecondary)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = TextPrimary,
+                lineHeight = 12.sp,
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(Teal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun UpdateSavingGoalScreenPreview() {
     MaterialTheme {
-        UpdateSavingGoalScreen()
+        UpdateSavingGoalScreen(onBack = {})
     }
 }

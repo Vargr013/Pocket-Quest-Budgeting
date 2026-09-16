@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,7 +62,6 @@ import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.copyReceiptToAppStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import androidx.compose.ui.text.style.TextAlign
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -169,7 +170,12 @@ fun AddExpenseScreen(
     }
 
     if (editing && (!loadedExpense || expenseError != null)) {
-        Column(Modifier.fillMaxSize().background(ScreenBg).padding(24.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ScreenBg)
+                .padding(24.dp),
+        ) {
             TextButton(onClick = onBack) { Text("Back to Details") }
             Text("Edit Expense", style = MaterialTheme.typography.titleLarge)
             Text(expenseError ?: "Loading expense…")
@@ -190,30 +196,32 @@ fun AddExpenseScreen(
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-
-        if (editing) {
-            TextButton(onClick = onBack, enabled = !saving) { Text("Back to Details") }
-        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                enabled = !saving,
+                modifier = Modifier.align(Alignment.CenterStart),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            ) {
+                Text(
+                    text = if (editing) "Back to Details" else "Back",
+                    color = Teal,
+                    fontSize = 16.sp,
+                )
+            }
             Text(
                 text = if (editing) "Edit Expense" else "Add Expense",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 72.dp),
             )
         }
 
@@ -255,7 +263,7 @@ fun AddExpenseScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(31.dp)
+                        .height(35.dp)
                         .background(FieldBg, CardShape),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -266,7 +274,7 @@ fun AddExpenseScreen(
                                 RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                             )
                             .padding(horizontal = 14.dp)
-                            .height(31.dp),
+                            .height(35.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text("R", fontSize = 16.sp, color = TextPrimary)
@@ -457,6 +465,7 @@ fun AddExpenseScreen(
             },
             enabled = !saving && !loadingCategories && loadError == null && receiptError == null,
             shape = CardShape,
+            contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
                 contentColor = TextPrimary,
@@ -465,10 +474,15 @@ fun AddExpenseScreen(
                 .fillMaxWidth()
                 .height(41.dp),
         ) {
-            Text(
-                text = if (saving) "Saving…" else if (editing) "Save changes" else "＋  Add Money",
-                fontSize = 20.sp,
-            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = if (saving) "Saving…" else if (editing) "Save changes" else "＋  Add Money",
+                    fontSize = 20.sp,
+                )
+            }
         }
         if (editing) {
             TextButton(onClick = onBack, enabled = !saving) { Text("Cancel") }

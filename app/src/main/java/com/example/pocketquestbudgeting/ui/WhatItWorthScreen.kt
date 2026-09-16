@@ -58,35 +58,27 @@ fun WhatItWorthScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
             Text(
                 text = "What Its Worth",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 72.dp),
             )
-        }
-
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.Start),
-        ) {
-            Text("Back", color = Teal)
         }
 
         Text(

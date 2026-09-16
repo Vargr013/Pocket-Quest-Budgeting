@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,7 +42,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.PaddingValues
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -67,20 +67,18 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            ) {
+                Text("Back", color = Teal, fontSize = 16.sp)
+            }
             Text(
                 text = "Remove Saving Goal",
                 fontSize = 32.sp,
@@ -89,15 +87,8 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(horizontal = 40.dp),
+                    .padding(horizontal = 56.dp),
             )
-        }
-
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.Start),
-        ) {
-            Text("Back", color = Teal)
         }
 
         Card(
