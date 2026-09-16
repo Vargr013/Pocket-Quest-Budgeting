@@ -12,7 +12,7 @@ data class CategoryMonthProgress(
     val spent: Long,
 )
 
-// I used an exclusive end so the last day of the month is included without calculating it.
+// I used Calendar to advance to the next month for the exclusive end date (Oracle, n.d.-b).
 fun currentMonthBounds(now: Calendar = Calendar.getInstance()): Pair<String, String> {
     val start = (now.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val end = (start.clone() as Calendar).apply { add(Calendar.MONTH, 1) }

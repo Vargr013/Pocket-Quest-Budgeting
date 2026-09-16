@@ -35,8 +35,9 @@ internal fun ExpenseDateSelector(
             Text(value.ifBlank { "Select date" })
         }
     }
+    // I used a DatePickerDialog and remembered picker state for date selection (Google, 2026c).
     if (open && enabled) {
-        // I kept picker dates in UTC so the selected day cannot shift with the device timezone.
+        // I kept the date formatter in UTC so the selected day cannot shift with the device timezone (Oracle, n.d.-c).
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
             isLenient = false

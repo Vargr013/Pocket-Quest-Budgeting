@@ -10,7 +10,7 @@ internal fun categorySpendingTotal(categories: List<CategorySpendingTotal>): Lon
 
 internal fun categorySpendingPercentage(cents: Long, totalCents: Long): String {
     if (totalCents == 0L || cents == 0L) return "0%"
-    // I calculated from cents without multiplying a Long by 100.
+    // I used BigDecimal for the percentage to avoid multiplying a Long by 100 (Oracle, n.d.-a).
     return BigDecimal.valueOf(cents).movePointRight(2)
         .divide(BigDecimal.valueOf(totalCents), 1, RoundingMode.HALF_UP)
         .toPlainString() + "%"
