@@ -8,9 +8,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.LaunchedEffect
 import com.example.pocketquestbudgeting.data.CategoryEntity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,8 +53,6 @@ import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
-import com.example.pocketquestbudgeting.data.activeUserId
-import com.example.pocketquestbudgeting.data.copyReceiptToAppStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
@@ -76,14 +71,15 @@ private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun AddExpenseScreen(
+    userId: Long,
     onBack: () -> Unit,
     onCategories: () -> Unit = {},
     expenseId: Long? = null,
 ) {
     val editing = expenseId != null
-    var loadedExpense by rememberSaveable(expenseId) { mutableStateOf(false) }
+    var loadedExpense by rememberSaveable(userId, expenseId) { mutableStateOf(false) }
     var expenseError by remember { mutableStateOf<String?>(null) }
-    var loadedUserId by rememberSaveable(expenseId) { mutableStateOf<Long?>(null) }
+    var loadedUserId by rememberSaveable(userId, expenseId) { mutableStateOf<Long?>(null) }
     // I used rememberSaveable to retain the form values when the activity is recreated (Google, 2026i).
     var receiptPath by rememberSaveable { mutableStateOf<String?>(null) }
     var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
@@ -100,37 +96,21 @@ fun AddExpenseScreen(
     var saveError by remember { mutableStateOf<String?>(null) }
     var receiptError by remember { mutableStateOf<String?>(null) }
     var amountText by rememberSaveable { mutableStateOf("") }
+    var receiptPending by rememberSaveable(userId, expenseId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     // I blocked Back while saving so an update cannot finish after cancelling.
-    BackHandler(enabled = editing || saving) { if (!saving) onBack() }
+    BackHandler(enabled = editing || saving || receiptPending) { if (!saving && !receiptPending) onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // I used the system photo picker to select a receipt image (Google, 2026f).
-    val pickImage = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        if (uri != null && !saving) {
-            try {
-                val copiedPath = copyReceiptToAppStorage(context, uri)
-                if (copiedPath != null) {
-                    receiptPath = copiedPath
-                    receiptError = null
-                } else receiptError = "Could not attach the receipt. Please try again."
-            } catch (_: Exception) {
-                receiptError = "Could not attach the receipt. Please try again."
-            }
-        }
-    }
-
     // I keyed the loading effect to the expense and reload value (Google, 2026h).
-    LaunchedEffect(expenseId, reload) {
+    LaunchedEffect(userId, expenseId, reload) {
         loadingCategories = true
         loadError = null
         expenseError = null
         try {
             val db = DatabaseProvider.get(context)
-            val userId = db.activeUserId()
-            if (editing && !loadedExpense) {
+
+            if (editing && (!loadedExpense || loadedUserId != userId)) {
                 val expense = expenseId?.takeIf { it > 0 }?.let {
                     db.expenseDao().getForUserById(userId, it)
                 }
@@ -160,7 +140,7 @@ fun AddExpenseScreen(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            if (editing && !loadedExpense) {
+            if (editing && (!loadedExpense || loadedUserId != userId)) {
                 expenseError = "Could not load this expense. Please retry or go back."
             } else loadError = "Could not load categories. Please retry."
         } finally {
@@ -192,7 +172,7 @@ fun AddExpenseScreen(
     ) {
 
         if (editing) {
-            TextButton(onClick = onBack, enabled = !saving) { Text("Back to Details") }
+            TextButton(onClick = onBack, enabled = !saving && !receiptPending) { Text("Back to Details") }
         }
         Box(
             modifier = Modifier
@@ -274,7 +254,7 @@ fun AddExpenseScreen(
                     PlainField(
                         value = amountText,
                         onValueChange = { amountText = it; errors = errors - "amount" },
-                        enabled = !saving,
+                        enabled = !saving && !receiptPending,
                         placeholder = "Enter Amount",
                         keyboardType = KeyboardType.Decimal,
                         background = Color.Transparent,
@@ -289,7 +269,7 @@ fun AddExpenseScreen(
                 PlainField(
                     value = description,
                     onValueChange = { description = it; errors = errors - "description" },
-                    enabled = !saving,
+                    enabled = !saving && !receiptPending,
                     placeholder = "e.g. Salary top-up",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
@@ -300,7 +280,7 @@ fun AddExpenseScreen(
                 Box(modifier = Modifier.fillMaxWidth().background(FieldBgSoft, CardShape)) {
                     TextButton(
                         onClick = { expanded = true },
-                        enabled = !saving && !loadingCategories && loadError == null && categories.isNotEmpty(),
+                        enabled = !saving && !receiptPending && !loadingCategories && loadError == null && categories.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(categories.firstOrNull { it.id == selectedCategoryId }?.name ?: "Select category") }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -320,18 +300,18 @@ fun AddExpenseScreen(
                 if (loadingCategories) Text("Loading categories...", fontSize = 12.sp)
                 loadError?.let {
                     FieldError(it)
-                    TextButton(onClick = { reload++ }, enabled = !saving) { Text("Retry categories") }
+                    TextButton(onClick = { reload++ }, enabled = !saving && !receiptPending) { Text("Retry categories") }
                 }
                 if (!loadingCategories && loadError == null && categories.isEmpty()) {
                     Text("Create a category before saving an expense.", fontSize = 12.sp)
                 }
-                TextButton(onClick = onCategories, enabled = !saving) { Text("Categories") }
+                TextButton(onClick = onCategories, enabled = !saving && !receiptPending) { Text("Categories") }
 
                 ExpenseDateSelector(
                     value = date,
                     onValueChange = { date = it; errors = errors - "date" },
                     label = "Date (YYYY-MM-DD)",
-                    enabled = !saving,
+                    enabled = !saving && !receiptPending,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FieldError(errors["date"])
@@ -340,7 +320,7 @@ fun AddExpenseScreen(
                 PlainField(
                     value = startTime,
                     onValueChange = { startTime = it; errors = errors - "startTime" },
-                    enabled = !saving,
+                    enabled = !saving && !receiptPending,
                     placeholder = "HH:mm",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
@@ -351,7 +331,7 @@ fun AddExpenseScreen(
                 PlainField(
                     value = endTime,
                     onValueChange = { endTime = it; errors = errors - "endTime" },
-                    enabled = !saving,
+                    enabled = !saving && !receiptPending,
                     placeholder = "HH:mm",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
@@ -360,41 +340,32 @@ fun AddExpenseScreen(
 
                 FieldError(receiptError)
                 if (receiptError != null) {
-                    TextButton(onClick = { receiptError = null }, enabled = !saving) {
+                    TextButton(onClick = { receiptError = null }, enabled = !saving && !receiptPending) {
                         Text("Keep current receipt choice")
                     }
                 }
                 val path = receiptPath
                 if (path != null) {
                     ExpenseReceipt(path)
-                    TextButton(onClick = { receiptPath = null; receiptError = null }, enabled = !saving) {
+                    TextButton(onClick = { receiptPath = null; receiptError = null }, enabled = !saving && !receiptPending) {
                         Text(stringResource(R.string.remove_photo))
                     }
                 }
-                Button(
-                    onClick = {
-                        pickImage.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
+                ReceiptPhotoActions(
+                    userId = userId,
+                    expenseId = expenseId,
                     enabled = !saving,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FieldBg,
-                        contentColor = TextPrimary,
-                    ),
-                    shape = CardShape,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (path != null) "Replace photo" else stringResource(R.string.add_photo))
-                }
+                    onReceipt = { receiptPath = it; receiptError = null },
+                    onError = { receiptError = it },
+                    onPending = { receiptPending = it },
+                )
             }
         }
 
-        Text("Using the demo user. Login is not connected yet.", fontSize = 12.sp, color = TextSecondary)
         FieldError(saveError)
         Button(
             onClick = {
-                if (saving || receiptError != null) return@Button
+                if (saving || receiptPending || receiptError != null) return@Button
                 val validation = validateExpense(date, startTime, endTime, description, selectedCategoryId, amountText)
                 errors = validation.errors
                 saveError = null
@@ -412,7 +383,7 @@ fun AddExpenseScreen(
                 scope.launch {
                     try {
                         val db = DatabaseProvider.get(context)
-                        val userId = if (editing) requireNotNull(editUserId) else db.activeUserId()
+                        check(!editing || editUserId == userId)
                         // I kept the category check and expense save in one transaction (Google, 2026j).
                         val saved = db.withTransaction {
                             if (db.categoryDao().getForUserById(userId, categoryId) == null) {
@@ -455,7 +426,7 @@ fun AddExpenseScreen(
                     }
                 }
             },
-            enabled = !saving && !loadingCategories && loadError == null && receiptError == null,
+            enabled = !saving && !receiptPending && !loadingCategories && loadError == null && receiptError == null,
             shape = CardShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
@@ -471,7 +442,7 @@ fun AddExpenseScreen(
             )
         }
         if (editing) {
-            TextButton(onClick = onBack, enabled = !saving) { Text("Cancel") }
+            TextButton(onClick = onBack, enabled = !saving && !receiptPending) { Text("Cancel") }
         }
     }
 }
@@ -528,6 +499,6 @@ private fun FieldError(message: String?) {
 @Composable
 private fun AddExpenseScreenPreview() {
     MaterialTheme {
-        AddExpenseScreen(onBack = {})
+        AddExpenseScreen(userId = 0L, onBack = {})
     }
 }

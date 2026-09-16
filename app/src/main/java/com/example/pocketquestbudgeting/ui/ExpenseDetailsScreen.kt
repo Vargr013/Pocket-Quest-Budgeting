@@ -27,12 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit, onEdit: (Long) -> Unit = {}) {
+fun ExpenseDetailsScreen(userId: Long, expenseId: Long?, onBack: () -> Unit, onEdit: (Long) -> Unit = {}) {
     val context = LocalContext.current
     var expense by remember(expenseId) { mutableStateOf<ExpenseEntity?>(null) }
     var categoryName by remember(expenseId) { mutableStateOf("Category unavailable") }
@@ -53,7 +52,7 @@ fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit, onEdit: (Long) ->
     // I reloaded on return so saved edits show here.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reload++ }
 
-    LaunchedEffect(expenseId, reload) {
+    LaunchedEffect(userId, expenseId, reload) {
         if (deleting) return@LaunchedEffect
         loading = true
         error = null
@@ -61,7 +60,7 @@ fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit, onEdit: (Long) ->
         try {
             if (expenseId != null && expenseId > 0) {
                 val db = DatabaseProvider.get(context)
-                val userId = db.activeUserId()
+
                 // I loaded by both IDs so another user's expense cannot open here.
                 val loaded = db.expenseDao().getForUserById(userId, expenseId)
                 categoryName = loaded?.let {
@@ -143,8 +142,8 @@ fun ExpenseDetailsScreen(expenseId: Long?, onBack: () -> Unit, onEdit: (Long) ->
                             val deleted = try {
                                 val db = DatabaseProvider.get(context)
                                 db.withTransaction {
-                                    // I used the owner from the scoped load and checked the row count.
-                                    val count = db.expenseDao().deleteForUser(target.userId, target.id)
+                                    // I used the signed-in account and checked the deleted row count.
+                                    val count = db.expenseDao().deleteForUser(userId, target.id)
                                     check(count in 0..1)
                                     count == 1
                                 }

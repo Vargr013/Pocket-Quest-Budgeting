@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -61,7 +60,7 @@ private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AddCategoryScreen(onBack: () -> Unit = {}) {
+fun AddCategoryScreen(userId: Long, onBack: () -> Unit = {}) {
     var categoryName by rememberSaveable { mutableStateOf("") }
     var minBudget by rememberSaveable { mutableStateOf("") }
     var maxBudget by rememberSaveable { mutableStateOf("") }
@@ -173,7 +172,7 @@ fun AddCategoryScreen(onBack: () -> Unit = {}) {
                         scope.launch {
                             try {
                                 val db = DatabaseProvider.get(context)
-                                val id = db.activeUserId()
+                                val id = userId
                                 if (db.categoryDao().create(id, name, minCents, maxCents) == null) {
                                     error = "You already have a category with that name."
                                 } else {
@@ -288,6 +287,6 @@ private fun PlainField(
 @Composable
 private fun AddCategoryScreenPreview() {
     MaterialTheme {
-        AddCategoryScreen()
+        AddCategoryScreen(userId = 0L)
     }
 }

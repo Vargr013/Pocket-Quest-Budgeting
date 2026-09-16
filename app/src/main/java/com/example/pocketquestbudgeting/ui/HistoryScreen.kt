@@ -52,7 +52,6 @@ import androidx.room.withTransaction
 import com.example.pocketquestbudgeting.data.CategoryEntity
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
@@ -69,7 +68,7 @@ private val ErrorRed = Color(0xFFD64545)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun HistoryScreen(onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
+fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf("all") }
     var startDate by rememberSaveable { mutableStateOf("") }
@@ -112,7 +111,7 @@ fun HistoryScreen(onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
         mutableStateOf<String?>(null)
     }
 
-    LaunchedEffect(filter, startDate, endDate, categoryId, search, reload) {
+    LaunchedEffect(userId, filter, startDate, endDate, categoryId, search, reload) {
         val requestedFilter = filter
         val requestedStart = startDate
         val requestedEnd = endDate
@@ -126,7 +125,7 @@ fun HistoryScreen(onBack: () -> Unit, onExpenseSelected: (Long) -> Unit = {}) {
 
         try {
             val db = DatabaseProvider.get(context)
-            val userId = db.activeUserId()
+
             val (loadedExpenses, anyExpenses, loadedCategories) = db.withTransaction {
                 val dao = db.expenseDao()
                 val currentCategories = db.categoryDao().getForUser(userId)
@@ -492,5 +491,5 @@ private fun PlainField(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun HistoryScreenPreview() {
-    MaterialTheme { HistoryScreen(onBack = {}) }
+    MaterialTheme { HistoryScreen(userId = 0L, onBack = {}) }
 }

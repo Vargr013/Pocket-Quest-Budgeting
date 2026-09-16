@@ -36,7 +36,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.room.withTransaction
 import com.example.pocketquestbudgeting.data.BudgetGoalEntity
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -48,7 +47,7 @@ private val RowBg = Color(0xFFE8EEEC)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-internal fun MonthlySpendingGoals() {
+internal fun MonthlySpendingGoals(userId: Long) {
     val context = LocalContext.current
     val inspecting = LocalInspectionMode.current
     val scope = rememberCoroutineScope()
@@ -76,13 +75,13 @@ internal fun MonthlySpendingGoals() {
         refreshMonth()
         reload++
     }
-    LaunchedEffect(month, reload) {
+    LaunchedEffect(userId, month, reload) {
         if (inspecting) return@LaunchedEffect
         val requestedMonth = month
         val requestedReload = reload
         try {
             val db = DatabaseProvider.get(context)
-            val saved = db.budgetGoalDao().getForMonth(db.activeUserId(), requestedMonth.start, requestedMonth.end)
+            val saved = db.budgetGoalDao().getForMonth(userId, requestedMonth.start, requestedMonth.end)
             coroutineContext.ensureActive()
             if (month != requestedMonth || reload != requestedReload) return@LaunchedEffect
             goal = saved
@@ -195,7 +194,7 @@ internal fun MonthlySpendingGoals() {
                     scope.launch {
                         try {
                             val db = DatabaseProvider.get(context)
-                            val userId = db.activeUserId()
+
                             // I kept the month check and goal save in one transaction (Google, 2026j).
                             val saved = db.withTransaction {
                                 // I checked again after waiting for the database so an old draft stays in its month.

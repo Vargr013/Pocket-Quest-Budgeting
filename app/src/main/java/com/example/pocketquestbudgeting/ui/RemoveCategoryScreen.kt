@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.data.CategoryChangeResult
 import com.example.pocketquestbudgeting.data.CategoryEntity
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -69,11 +68,10 @@ private val RemoveOrange = Color(0xFFC45C26)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}) {
+fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}) {
     val context = LocalContext.current
     val db = remember(context) { DatabaseProvider.get(context) }
     val scope = rememberCoroutineScope()
-    var userId by remember { mutableStateOf<Long?>(null) }
     var categories by remember { mutableStateOf<List<CategoryEntity>>(emptyList()) }
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var expanded by remember { mutableStateOf(false) }
@@ -87,12 +85,11 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
     var reload by remember { mutableIntStateOf(0) }
     val selected = categories.firstOrNull { it.id == selectedId }
 
-    LaunchedEffect(reload) {
+    LaunchedEffect(userId, reload) {
         loading = true
         try {
-            val id = db.activeUserId()
+            val id = userId
             categories = db.categoryDao().getForUser(id)
-            userId = id
             if (categories.none { it.id == selectedId }) selectedId = null
             error = null
         } catch (cancelled: CancellationException) {
@@ -105,7 +102,7 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
     }
 
     fun saveChange() {
-        val id = userId ?: return
+        val id = userId
         val category = selected ?: return
         val currentAction = action ?: return
         if (saving) return
@@ -272,15 +269,10 @@ fun RemoveCategoryScreen(onBack: () -> Unit = {}, onAddCategory: () -> Unit = {}
                     Text("Create category", color = Teal)
                 }
 
-                Text(
-                    "Using the demo user. Login is not connected yet.",
-                    fontSize = 12.sp,
-                    color = TextSecondary,
-                )
 
                 when {
                     loading -> Text("Loading categories...", fontSize = 12.sp, color = TextSecondary)
-                    userId != null && categories.isEmpty() ->
+                    error == null && categories.isEmpty() ->
                         Text("No categories yet.", fontSize = 12.sp, color = TextSecondary)
                 }
 
@@ -504,6 +496,6 @@ private enum class CategoryAction { RENAME, SET_BUDGETS, DELETE }
 @Composable
 private fun RemoveCategoryScreenPreview() {
     MaterialTheme {
-        RemoveCategoryScreen()
+        RemoveCategoryScreen(userId = 0L)
     }
 }

@@ -148,7 +148,7 @@ interface CategoryDao {
         )
     }
 
-    // I reused existing categories when setting up the demo defaults.
+    // I reused existing categories when setting up each account's defaults.
     @Transaction
     suspend fun getOrCreate(userId: Long, name: String): Long {
         return create(userId, name) ?: getForUser(userId).first {

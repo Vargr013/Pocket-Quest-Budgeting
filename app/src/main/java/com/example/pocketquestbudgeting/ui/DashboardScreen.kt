@@ -52,7 +52,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.CategoryMonthProgress
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import com.example.pocketquestbudgeting.data.currentMonthBounds
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
@@ -71,6 +70,7 @@ private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun DashboardScreen(
+    userId: Long,
     onAddExpense: () -> Unit,
     onHistory: () -> Unit,
     onMenu: () -> Unit = {},
@@ -98,11 +98,11 @@ fun DashboardScreen(
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
-        LaunchedEffect(reload) {
+        LaunchedEffect(userId, reload) {
             categoriesLoading = true
             try {
                 val db = DatabaseProvider.get(context)
-                val userId = db.activeUserId()
+
                 val (monthStart, monthEnd) = currentMonthBounds()
                 categoryRows = db.categoryDao().getMonthProgress(userId, monthStart, monthEnd)
                 categoriesError = null
@@ -163,11 +163,12 @@ fun DashboardScreen(
             }
 
             DashboardCard {
-                MonthlySpendingGoals()
+                MonthlySpendingGoals(userId)
             }
 
             DashboardCard {
                 DashboardCategorySpending(
+                    userId = userId,
                     onCategories = onCategories,
                     onSummary = onCategorySpend,
                 )
@@ -383,6 +384,6 @@ private val previewCategoryRows = listOf(
 @Composable
 private fun DashboardScreenPreview() {
     MaterialTheme {
-        DashboardScreen(onAddExpense = {}, onHistory = {})
+        DashboardScreen(userId = 0L, onAddExpense = {}, onHistory = {})
     }
 }

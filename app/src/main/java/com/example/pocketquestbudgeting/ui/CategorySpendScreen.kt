@@ -44,7 +44,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.pocketquestbudgeting.data.CategorySpendingTotal
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
@@ -55,7 +54,7 @@ private val TextSecondary = Color(0xFF3F4944)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
+fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
     var period by rememberSaveable { mutableStateOf("all") }
     var startDate by rememberSaveable { mutableStateOf("") }
@@ -91,7 +90,7 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
     var loading by remember(period, startDate, endDate, reload) { mutableStateOf(true) }
     var error by remember(period, startDate, endDate, reload) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(period, startDate, endDate, reload) {
+    LaunchedEffect(userId, period, startDate, endDate, reload) {
         val requestedPeriod = period
         val requestedStart = startDate
         val requestedEnd = endDate
@@ -101,7 +100,7 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
 
         try {
             val db = DatabaseProvider.get(context)
-            val userId = db.activeUserId()
+
             val rows = db.categoryDao().getSpendingForUser(
                 userId,
                 requestedStart.takeUnless { requestedPeriod == "all" },
@@ -246,5 +245,5 @@ fun CategorySpendingSummaryScreen(onBack: () -> Unit) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun CategorySpendingSummaryScreenPreview() {
-    MaterialTheme { CategorySpendingSummaryScreen(onBack = {}) }
+    MaterialTheme { CategorySpendingSummaryScreen(userId = 0L, onBack = {}) }
 }

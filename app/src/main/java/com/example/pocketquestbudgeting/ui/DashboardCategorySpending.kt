@@ -25,14 +25,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.pocketquestbudgeting.data.CategorySpendingTotal
 import com.example.pocketquestbudgeting.data.DatabaseProvider
-import com.example.pocketquestbudgeting.data.activeUserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DashboardCategorySpending(onCategories: () -> Unit, onSummary: () -> Unit) {
+internal fun DashboardCategorySpending(userId: Long, onCategories: () -> Unit, onSummary: () -> Unit) {
     val context = LocalContext.current
     var month by remember { mutableStateOf(historyShortcutRange("month")) }
     var reload by remember { mutableStateOf(0) }
@@ -48,13 +47,13 @@ internal fun DashboardCategorySpending(onCategories: () -> Unit, onSummary: () -
     var loading by remember(month, reload) { mutableStateOf(true) }
     var error by remember(month, reload) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(month, reload) {
+    LaunchedEffect(userId, month, reload) {
         val requestedMonth = month
         val requestedReload = reload
         fun isCurrentLoad() = requestedMonth == month && requestedReload == reload
         try {
             val db = DatabaseProvider.get(context)
-            val userId = db.activeUserId()
+
             val rows = db.categoryDao().getSpendingForUser(userId, requestedMonth.start, requestedMonth.end)
             val total = categorySpendingTotal(rows)
             coroutineContext.ensureActive()
