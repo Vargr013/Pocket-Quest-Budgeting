@@ -248,36 +248,40 @@ private fun LoginPlainField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isPassword: Boolean = false,
-    height: Dp = 25.dp,
+    height: Dp = 35.dp,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(fontSize = 11.sp, color = TextPrimary),
-        visualTransformation = if (isPassword) {
-            PasswordVisualTransformation()
-        } else {
-            VisualTransformation.None
-        },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
-        ),
-        cursorBrush = SolidColor(LoginTeal),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
             .background(FieldGray, FieldShape)
-            .padding(horizontal = 14.dp, vertical = 4.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(placeholder, fontSize = 11.sp, color = TextSecondary)
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(placeholder, fontSize = 11.sp, color = TextSecondary)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 11.sp,
+                color = TextPrimary,
+                lineHeight = 11.sp,
+            ),
+            visualTransformation = if (isPassword) {
+                PasswordVisualTransformation()
+            } else {
+                VisualTransformation.None
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+            ),
+            cursorBrush = SolidColor(LoginTeal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

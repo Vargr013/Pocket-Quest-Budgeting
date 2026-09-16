@@ -480,36 +480,40 @@ private fun PlainField(
     placeholder: String,
     modifier: Modifier = Modifier,
     background: Color = FieldBgSoft,
-    height: Dp = 31.dp,
+    height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
     isError: Boolean = false,
     enabled: Boolean = true,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        enabled = enabled,
-        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(Teal),
+    Box(
         modifier = modifier
             .height(height)
             .background(background, CardShape)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        fontSize = 12.sp,
-                        color = if (isError) ErrorRed else TextSecondary,
-                    )
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                fontSize = 12.sp,
+                color = if (isError) ErrorRed else TextSecondary,
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            enabled = enabled,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = TextPrimary,
+                lineHeight = 12.sp,
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(Teal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable

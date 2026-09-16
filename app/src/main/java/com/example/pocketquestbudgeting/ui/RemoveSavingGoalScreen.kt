@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -40,6 +41,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.PaddingValues
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -58,15 +60,13 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 10.dp)
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextButton(onClick = onBack) {
-    Text("Back")
-}
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -83,12 +83,21 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
             )
             Text(
                 text = "Remove Saving Goal",
-                fontSize = 36.sp,
-                lineHeight = 44.sp,
+                fontSize = 32.sp,
+                lineHeight = 40.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 40.dp),
             )
+        }
+
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.Start),
+        ) {
+            Text("Back", color = Teal)
         }
 
         Card(
@@ -131,6 +140,7 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
         Button(
             onClick = { },
             shape = CardShape,
+            contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = RemoveOrange,
                 contentColor = TextPrimary,
@@ -140,7 +150,12 @@ fun RemoveSavingGoalScreen(onBack: () -> Unit) {
                 .widthIn(max = 315.dp)
                 .height(41.dp),
         ) {
-            Text("＋  Remove Saving Goal", fontSize = 20.sp)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("＋  Remove Saving Goal", fontSize = 20.sp)
+            }
         }
     }
 }
@@ -152,29 +167,33 @@ private fun PlainField(
     placeholder: String,
     modifier: Modifier = Modifier,
     background: Color = FieldBgSoft,
-    height: Dp = 31.dp,
+    height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(Teal),
+    Box(
         modifier = modifier
             .height(height)
             .background(background, CardShape)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(placeholder, fontSize = 12.sp, color = TextSecondary)
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(placeholder, fontSize = 12.sp, color = TextSecondary)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = TextPrimary,
+                lineHeight = 12.sp,
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(Teal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

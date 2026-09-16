@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -63,15 +64,13 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 10.dp)
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextButton(onClick = onBack) {
-    Text("Back")
-}
         // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
@@ -94,6 +93,13 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.Center),
             )
+        }
+
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.Start),
+        ) {
+            Text("Back", color = Teal)
         }
 
         Card(
@@ -169,7 +175,7 @@ private fun AmountField(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(31.dp)
+            .height(35.dp)
             .background(FieldBg, CardShape),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -180,7 +186,7 @@ private fun AmountField(
                     RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                 )
                 .padding(horizontal = 14.dp)
-                .height(31.dp),
+                .height(35.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text("R", fontSize = 16.sp, color = TextPrimary)
@@ -203,29 +209,33 @@ private fun PlainField(
     placeholder: String,
     modifier: Modifier = Modifier,
     background: Color = FieldBgSoft,
-    height: Dp = 31.dp,
+    height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(Teal),
+    Box(
         modifier = modifier
             .height(height)
             .background(background, CardShape)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(placeholder, fontSize = 12.sp, color = TextSecondary)
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(placeholder, fontSize = 12.sp, color = TextSecondary)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = TextPrimary,
+                lineHeight = 12.sp,
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(Teal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
