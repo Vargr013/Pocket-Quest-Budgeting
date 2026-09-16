@@ -31,6 +31,7 @@ private val PocketQuestLightColorScheme = lightColorScheme(
 
 @Composable
 fun PocketQuestTheme(content: @Composable () -> Unit) {
+    // I applied the shared colours and typography through MaterialTheme (Google, 2026d).
     MaterialTheme(
         colorScheme = PocketQuestLightColorScheme,
         typography = PocketQuestTypography,

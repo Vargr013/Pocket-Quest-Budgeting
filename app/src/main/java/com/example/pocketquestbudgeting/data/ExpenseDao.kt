@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 
+// I used Room DAO queries with bound parameters for expense reads and changes (Google, 2026b).
 @Dao
 interface ExpenseDao {
     @Insert

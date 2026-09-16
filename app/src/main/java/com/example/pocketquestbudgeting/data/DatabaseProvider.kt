@@ -10,7 +10,7 @@ object DatabaseProvider {
     private var instance: AppDatabase? = null
 
     fun get(context: Context): AppDatabase {
-        // I shared one database instance across the screens.
+        // I shared one database instance across the screens (Google, 2026g).
         return instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,

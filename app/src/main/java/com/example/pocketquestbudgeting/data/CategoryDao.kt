@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
-    // I kept dates in the join so categories without spending still appear.
+    // I kept dates in the join so categories without spending still appear (SQLite, 2026).
+    // I used SUM to total the stored cents for each category (SQLite, 2025).
     @Query("""
         SELECT c.id AS categoryId, c.name AS categoryName,
             COALESCE(SUM(e.amount), 0) AS totalCents
@@ -33,14 +34,15 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE userId = :userId ORDER BY name COLLATE NOCASE, id")
     suspend fun getForUser(userId: Long): List<CategoryEntity>
 
-    // I observed the saved list so returning from category changes refreshes the picker.
+    // I observed the saved list so category changes refresh the picker (Google, 2026k).
     @Query("SELECT * FROM categories WHERE userId = :userId ORDER BY name COLLATE NOCASE, id")
     fun observeForUser(userId: Long): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM categories WHERE id = :categoryId AND userId = :userId")
     suspend fun getForUserById(userId: Long, categoryId: Long): CategoryEntity?
 
-    // I kept categories with no expenses this month, and treated a missing sum as zero.
+    // I kept categories with no expenses using LEFT JOIN (SQLite, 2026).
+    // I totalled the month with SUM and treated a missing sum as zero (SQLite, 2025).
     @Query("""
         SELECT
             c.id AS categoryId,
@@ -121,7 +123,7 @@ interface CategoryDao {
         else CategoryChangeResult.IN_USE
     }
 
-    // I kept the check and save together to prevent duplicates from overlapping saves.
+    // I kept the check and save in one transaction to prevent overlapping saves (Google, 2026j).
     @Transaction
     suspend fun create(
         userId: Long,

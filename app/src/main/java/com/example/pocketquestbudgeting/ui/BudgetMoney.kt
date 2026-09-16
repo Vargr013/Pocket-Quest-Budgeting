@@ -7,7 +7,7 @@ internal fun parseBudgetCents(text: String): Long? {
     val amount = text.trim()
     if (!Regex("[0-9]+(\\.[0-9]{1,2})?").matches(amount)) return null
     return try {
-        // I converted directly to cents so money is never rounded through Double.
+        // I converted directly to cents so money is never rounded through Double (Oracle, n.d.-a).
         BigDecimal(amount).movePointRight(2).longValueExact().takeIf { it >= 0 }
     } catch (_: ArithmeticException) {
         null

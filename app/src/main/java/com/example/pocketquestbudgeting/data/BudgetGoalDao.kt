@@ -31,7 +31,7 @@ interface BudgetGoalDao {
         minimumAmount: Long, maximumAmount: Long,
     ) {
         require(minimumAmount >= 0 && maximumAmount >= minimumAmount)
-        // I kept the lookup and save together so repeated saves update the same month.
+        // I kept the lookup and save in one transaction so repeated saves update the same month (Google, 2026j).
         val existing = getForMonth(userId, startDate, endDate)
         if (existing == null) {
             insert(BudgetGoalEntity(

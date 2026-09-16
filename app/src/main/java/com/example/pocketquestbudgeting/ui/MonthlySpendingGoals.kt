@@ -196,6 +196,7 @@ internal fun MonthlySpendingGoals() {
                         try {
                             val db = DatabaseProvider.get(context)
                             val userId = db.activeUserId()
+                            // I kept the month check and goal save in one transaction (Google, 2026j).
                             val saved = db.withTransaction {
                                 // I checked again after waiting for the database so an old draft stays in its month.
                                 if (historyShortcutRange("month").start != start) return@withTransaction false

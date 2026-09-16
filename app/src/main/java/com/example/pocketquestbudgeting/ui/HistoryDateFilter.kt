@@ -19,6 +19,7 @@ internal fun historyShortcutRange(
     shortcut: String,
     today: Calendar = GregorianCalendar(),
 ): HistoryDateRange {
+    // I used Calendar arithmetic for the week and month boundaries (Oracle, n.d.-b).
     val start = today.clone() as Calendar
     if (shortcut == "week") {
         // I counted back to Monday without using the locale's first weekday.

@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun PocketQuestNavigation(modifier: Modifier = Modifier) {
+    // I used a navigation controller and host to manage the screen routes (Google, 2026e).
     val navController = rememberNavController()
 
     NavHost(

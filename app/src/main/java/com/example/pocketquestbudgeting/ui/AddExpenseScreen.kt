@@ -84,6 +84,7 @@ fun AddExpenseScreen(
     var loadedExpense by rememberSaveable(expenseId) { mutableStateOf(false) }
     var expenseError by remember { mutableStateOf<String?>(null) }
     var loadedUserId by rememberSaveable(expenseId) { mutableStateOf<Long?>(null) }
+    // I used rememberSaveable to retain the form values when the activity is recreated (Google, 2026i).
     var receiptPath by rememberSaveable { mutableStateOf<String?>(null) }
     var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
     var startTime by rememberSaveable { mutableStateOf("") }
@@ -104,6 +105,7 @@ fun AddExpenseScreen(
     BackHandler(enabled = editing || saving) { if (!saving) onBack() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // I used the system photo picker to select a receipt image (Google, 2026f).
     val pickImage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
@@ -120,6 +122,7 @@ fun AddExpenseScreen(
         }
     }
 
+    // I keyed the loading effect to the expense and reload value (Google, 2026h).
     LaunchedEffect(expenseId, reload) {
         loadingCategories = true
         loadError = null
@@ -410,7 +413,7 @@ fun AddExpenseScreen(
                     try {
                         val db = DatabaseProvider.get(context)
                         val userId = if (editing) requireNotNull(editUserId) else db.activeUserId()
-                        // I checked the category belongs to this user and cannot be deleted while saving.
+                        // I kept the category check and expense save in one transaction (Google, 2026j).
                         val saved = db.withTransaction {
                             if (db.categoryDao().getForUserById(userId, categoryId) == null) {
                                 return@withTransaction -1
