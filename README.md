@@ -2,6 +2,10 @@
 
 Android budgeting app (Jetpack Compose). Track expenses by category, attach optional receipt photos, review history for a date range, and keep data on-device with Room (SQLite).
 
+## Video Demonstration
+
+[https://www.youtube.com/watch?v=8R5WFqYDNKo](https://www.youtube.com/watch?v=8R5WFqYDNKo)
+
 ## Requirements
 
 - Android Studio (recent stable)
