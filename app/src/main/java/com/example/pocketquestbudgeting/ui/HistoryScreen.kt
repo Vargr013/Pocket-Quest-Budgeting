@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -179,25 +179,23 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                     .fillMaxWidth()
                     .padding(top = 4.dp),
             ) {
-                Text(
-                    text = "☰",
-                    fontSize = 28.sp,
-                    color = Teal,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 4.dp),
-                )
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                ) {
+                    Text("Back", color = Teal, fontSize = 16.sp)
+                }
                 Text(
                     text = "History",
                     fontSize = 36.sp,
                     lineHeight = 44.sp,
                     color = TextPrimary,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 56.dp),
                 )
-            }
-            TextButton(onClick = onBack) {
-                Text("Back", color = Teal)
             }
         }
 
@@ -306,7 +304,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(31.dp)
+                            .height(35.dp)
                             .background(FieldBgSoft, CardShape)
                             .clickable(enabled = categoriesLoaded) { categoryMenuOpen = true }
                             .padding(horizontal = 14.dp),
@@ -463,29 +461,33 @@ private fun PlainField(
     placeholder: String,
     modifier: Modifier = Modifier,
     background: Color = FieldBgSoft,
-    height: Dp = 31.dp,
+    height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
 ) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(fontSize = 12.sp, color = TextPrimary),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(Teal),
+    Box(
         modifier = modifier
             .height(height)
             .background(background, CardShape)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(placeholder, fontSize = 12.sp, color = TextSecondary)
-                }
-                inner()
-            }
-        },
-    )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text(placeholder, fontSize = 12.sp, color = TextSecondary)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = TextPrimary,
+                lineHeight = 12.sp,
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(Teal),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

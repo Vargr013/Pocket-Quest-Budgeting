@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +42,7 @@ private val CornerBlack = Color(0xFF000000)
 private val GalleryBorder = Color(0xFF2A2929)
 
 @Composable
-fun ReceiptScannerScreen() {
+fun ReceiptScannerScreen(onBack: () -> Unit = {}) {
     var zoom by remember { mutableStateOf("1x") }
 
     Box(
@@ -49,35 +50,35 @@ fun ReceiptScannerScreen() {
             .fillMaxSize()
             .background(ScreenBg),
     ) {
-        // ☰ = menu (corner only)
-        Text(
-            text = "☰",
-            fontSize = 28.sp,
-            color = Teal,
+        Box(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp, top = 8.dp),
-        )
-
-        // Optional page label (not in Figma text, but useful)
-        Text(
-            text = "Receipt Scanner",
-            fontSize = 20.sp,
-            color = TextPrimary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
+                .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .padding(top = 28.dp),
-        )
+                .padding(top = 4.dp),
+        ) {
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
+            Text(
+                text = "Receipt Scanner",
+                fontSize = 20.sp,
+                color = TextPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 72.dp),
+            )
+        }
 
-        // Viewfinder corner brackets
         ViewfinderCorners(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 15.dp, vertical = 80.dp),
         )
 
-        // Bottom controls
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -85,7 +86,6 @@ fun ReceiptScannerScreen() {
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Zoom: 1x / 2x / 4x
             Row(
                 modifier = Modifier
                     .background(ZoomBg, RoundedCornerShape(20.dp))
@@ -110,7 +110,6 @@ fun ReceiptScannerScreen() {
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
             ) {
-                // Shutter button
                 Box(
                     modifier = Modifier
                         .size(103.dp)
@@ -122,7 +121,6 @@ fun ReceiptScannerScreen() {
                         .clickable { /* UI only */ },
                 )
 
-                // Gallery preview (bottom-right in Figma)
                 Box(
                     modifier = Modifier
                         .size(54.dp)
@@ -207,6 +205,6 @@ private fun CornerBracket(
 @Composable
 private fun ReceiptScannerScreenPreview() {
     MaterialTheme {
-        ReceiptScannerScreen()
+        ReceiptScannerScreen(onBack = {})
     }
 }

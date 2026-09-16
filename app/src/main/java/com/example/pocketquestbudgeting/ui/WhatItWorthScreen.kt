@@ -1,5 +1,6 @@
 package com.example.pocketquestbudgeting.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.pocketquestbudgeting.R
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -37,7 +42,7 @@ private val Teal = Color(0xFF0F6B5C)
 private val Coral = Color(0xFFE07A5F)
 private val CardWhite = Color(0xFFFFFFFF)
 private val PanelBg = Color(0xFFE8EEEC)
-private val PlaceholderGray = Color(0xFFC4C4C4)
+private val CircleBg = Color(0xFFC4C4C4)
 private val CardBorder = Color(0xFF7D0000)
 private val CardShape = RoundedCornerShape(20.dp)
 
@@ -53,30 +58,26 @@ fun WhatItWorthScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextButton(onClick = onBack) {
-    Text("Back")
-}
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
             Text(
                 text = "What Its Worth",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 72.dp),
             )
         }
 
@@ -97,19 +98,16 @@ fun WhatItWorthScreen(onBack: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .background(PlaceholderGray, CircleShape),
+            IconCircle(
+                drawableRes = R.drawable.piggy_bank,
+                size = 140.dp,
+                iconSize = 90.dp,
             )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("−", fontSize = 28.sp, color = Color(0xFF1E1E1E))
-                Text("−", fontSize = 28.sp, color = Color(0xFF1E1E1E))
-            }
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .background(PlaceholderGray, CircleShape),
+            Text("=", fontSize = 36.sp, color = TextPrimary)
+            IconCircle(
+                drawableRes = R.drawable.icon_coffee,
+                size = 140.dp,
+                iconSize = 90.dp,
             )
         }
 
@@ -159,8 +157,14 @@ fun WhatItWorthScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    ComparisonCard(label = "2 Burgers\n= R160")
-                    ComparisonCard(label = "1 Movie\n= R175")
+                    ComparisonCard(
+                        drawableRes = R.drawable.icon_burger,
+                        label = "2 Burgers\n= R160",
+                    )
+                    ComparisonCard(
+                        drawableRes = R.drawable.icon_ticket,
+                        label = "1 Movie\n= R175",
+                    )
                 }
             }
         }
@@ -168,10 +172,34 @@ fun WhatItWorthScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ComparisonCard(label: String) {
+private fun IconCircle(
+    drawableRes: Int,
+    size: Dp,
+    iconSize: Dp,
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(CircleBg, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(drawableRes),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+private fun ComparisonCard(
+    drawableRes: Int,
+    label: String,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Bottom,
+        verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .width(145.dp)
             .height(145.dp)
@@ -179,10 +207,11 @@ private fun ComparisonCard(label: String) {
             .border(1.dp, CardBorder, CardShape)
             .padding(8.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .background(PlaceholderGray, CircleShape),
+        Image(
+            painter = painterResource(drawableRes),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(72.dp),
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(

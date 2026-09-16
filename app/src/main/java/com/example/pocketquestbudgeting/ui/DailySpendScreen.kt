@@ -47,7 +47,6 @@ private val Utilities = Color(0xFF3D7EA6)
 
 private val CardShape = RoundedCornerShape(20.dp)
 
-// Placeholder stacked values (bottom → top), matching Figma look
 private data class DaySpend(
     val label: String,
     val rent: Float,
@@ -82,23 +81,17 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
             .padding(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TextButton(onClick = onBack) {
-    Text("Back")
-}
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text("Back", color = Teal)
+            }
             Text(
                 text = "Daily Spending Graph",
                 fontSize = 28.sp,
@@ -107,7 +100,7 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(horizontal = 40.dp),
+                    .padding(horizontal = 72.dp),
             )
         }
 
@@ -126,7 +119,6 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
                         .fillMaxWidth()
                         .height(320.dp),
                 ) {
-                    // Y-axis labels
                     Column(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -140,7 +132,6 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
                         }
                     }
 
-                    // Chart area
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -183,7 +174,6 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // X-axis day labels
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -203,7 +193,6 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Legend
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -271,7 +260,6 @@ private fun StackedBar(
         if (emptyWeight > 0f) {
             Spacer(modifier = Modifier.weight(emptyWeight))
         }
-        // Draw top → bottom visually by reversing (utilities on top in Figma)
         segments.asReversed().forEach { (value, color) ->
             val w = (value / maxY).coerceAtLeast(0.001f)
             Box(

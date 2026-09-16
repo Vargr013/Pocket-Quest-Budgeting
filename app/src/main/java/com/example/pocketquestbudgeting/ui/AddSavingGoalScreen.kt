@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,35 +72,28 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // ☰ = menu (corner only), title separate
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            Text(
-                text = "☰",
-                fontSize = 28.sp,
-                color = Teal,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 4.dp),
-            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            ) {
+                Text("Back", color = Teal, fontSize = 16.sp)
+            }
             Text(
                 text = "Add Saving Goal",
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 color = TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 56.dp),
             )
-        }
-
-        TextButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.Start),
-        ) {
-            Text("Back", color = Teal)
         }
 
         Card(
@@ -153,6 +147,7 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
         Button(
             onClick = { },
             shape = CardShape,
+            contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = ButtonTeal,
                 contentColor = TextPrimary,
@@ -162,7 +157,12 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
                 .widthIn(max = 315.dp)
                 .height(41.dp),
         ) {
-            Text("＋  Add Saving Goal", fontSize = 20.sp)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("＋  Add Saving Goal", fontSize = 20.sp)
+            }
         }
     }
 }
