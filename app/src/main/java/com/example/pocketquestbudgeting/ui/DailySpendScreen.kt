@@ -133,6 +133,8 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
             expenses = rows
             error = null
             loading = false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             if (requestedPeriod != period || requestedReload != reload) {
                 return@LaunchedEffect
@@ -201,139 +203,148 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
 
         when {
             loading -> Text("Loading graph...", color = TextSecondary)
-            error != null -> Text(error ?: "", color = Color(0xFFD64545))
-            else -> Text("Expenses in this period: ${expenses.size}", color = TextSecondary)
-        }
+            error != null -> {
+                Text(error ?: "", color = Color(0xFFD64545))
+                TextButton(onClick = { reload++ }) {
+                    Text("Retry")
+                }
+            }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = CardShape,
-            colors = CardDefaults.cardColors(containerColor = CardWhite),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp),
+            expenses.isEmpty() -> Text("No spending in this period.", color = TextSecondary)
+            else -> {
+                Text("Expenses in this period: ${expenses.size}", color = TextSecondary)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CardShape,
+                    colors = CardDefaults.cardColors(containerColor = CardWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(36.dp)
-                            .padding(end = 4.dp),
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        listOf("R600", "R400", "R200", "R0").forEach {
-                            Text(it, fontSize = 10.sp, color = Color.Black)
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .border(1.dp, GridLine),
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.SpaceBetween,
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp),
                         ) {
-                            repeat(4) {
-                                Box(
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(36.dp)
+                                    .padding(end = 4.dp),
+                                verticalArrangement = Arrangement.SpaceBetween,
+                                horizontalAlignment = Alignment.End,
+                            ) {
+                                listOf("R600", "R400", "R200", "R0").forEach {
+                                    Text(it, fontSize = 10.sp, color = Color.Black)
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .border(1.dp, GridLine),
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    repeat(4) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(1.dp)
+                                                .background(GridLine),
+                                        )
+                                    }
+                                }
+
+                                Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(1.dp)
-                                        .background(GridLine),
-                                )
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.Bottom,
+                                ) {
+                                    weekData.forEach { day ->
+                                        StackedBar(
+                                            day = day,
+                                            maxY = maxY,
+                                            modifier = Modifier
+                                                .width(28.dp)
+                                                .fillMaxHeight(),
+                                        )
+                                    }
+                                }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                .fillMaxWidth()
+                                .padding(start = 36.dp),
                             horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.Bottom,
                         ) {
                             weekData.forEach { day ->
-                                StackedBar(
-                                    day = day,
-                                    maxY = maxY,
-                                    modifier = Modifier
-                                        .width(28.dp)
-                                        .fillMaxHeight(),
+                                Text(
+                                    text = day.label,
+                                    fontSize = 10.sp,
+                                    color = Color.Black,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.width(28.dp),
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                LegendItem("Rent", Rent)
+                                LegendItem("Entertainment", Entertainment)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                LegendItem("Groceries", Groceries)
+                                LegendItem("Utilities", Utilities)
+                            }
+                            LegendItem("Transport", Transport)
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = "Total this Week:",
+                                fontSize = 14.sp,
+                                color = TextSecondary,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "R2,290",
+                                fontSize = 20.sp,
+                                color = Color.Black,
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 36.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    weekData.forEach { day ->
-                        Text(
-                            text = day.label,
-                            fontSize = 10.sp,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.width(28.dp),
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        LegendItem("Rent", Rent)
-                        LegendItem("Entertainment", Entertainment)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        LegendItem("Groceries", Groceries)
-                        LegendItem("Utilities", Utilities)
-                    }
-                    LegendItem("Transport", Transport)
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = "Total this Week:",
-                        fontSize = 14.sp,
-                        color = TextSecondary,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "R2,290",
-                        fontSize = 20.sp,
-                        color = Color.Black,
-                    )
-                }
             }
         }
     }
