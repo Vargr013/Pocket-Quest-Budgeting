@@ -23,6 +23,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +74,9 @@ private val weekData = listOf(
 )
 
 @Composable
-fun DailySpendingGraphScreen(onBack: () -> Unit) {
+fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
+    // I saved the selected period so rotation does not reset the graph.
+    var period by rememberSaveable { mutableStateOf("month") }
     val maxY = 600f
 
     Column(
@@ -104,6 +111,29 @@ fun DailySpendingGraphScreen(onBack: () -> Unit) {
                     .padding(horizontal = 72.dp),
             )
         }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            FilterChip(
+                selected = period == "month",
+                onClick = { period = "month" },
+                label = { Text("This month") },
+            )
+            FilterChip(
+                selected = period == "last_month",
+                onClick = { period = "last_month" },
+                label = { Text("Last month") },
+            )
+            FilterChip(
+                selected = period == "week",
+                onClick = { period = "week" },
+                label = { Text("This week") },
+            )
+        }
+
+        Text("Selected: $period", color = TextSecondary)
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -291,6 +321,6 @@ private fun LegendItem(label: String, color: Color) {
 @Composable
 private fun DailySpendingGraphScreenPreview() {
     MaterialTheme {
-        DailySpendingGraphScreen(onBack = {})
+        DailySpendingGraphScreen(userId = 0L, onBack = {})
     }
 }

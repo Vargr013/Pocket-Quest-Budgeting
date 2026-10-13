@@ -175,7 +175,7 @@ private fun AccountNavigation(userId: Long?, onLogin: (Long) -> Unit, onLogout: 
                 WhatItWorthScreen(onBack = { navController.popBackStack() })
             }
             composable("daily_spend") {
-                DailySpendingGraphScreen(onBack = { navController.popBackStack() })
+                DailySpendingGraphScreen(userId = userId, onBack = { navController.popBackStack() })
             }
             composable("category_spend") {
                 CategorySpendingSummaryScreen(userId = userId, onBack = { navController.popBackStack() })
