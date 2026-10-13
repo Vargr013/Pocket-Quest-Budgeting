@@ -36,6 +36,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.example.pocketquestbudgeting.data.DatabaseProvider
+import com.example.pocketquestbudgeting.data.ExpenseEntity
+import kotlinx.coroutines.CancellationException
 
 private val ScreenBg = Color(0xFFF4F7F6)
 private val TextPrimary = Color(0xFF1A2B28)
@@ -82,7 +91,56 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
         "last_month" -> previousMonthRange()
         else -> historyShortcutRange("month")
     }
+    val context = LocalContext.current
+    val inspecting = LocalInspectionMode.current
+    // I reloaded on resume so a new expense appears after returning from Add expense.
+    var reload by remember { mutableStateOf(0) }
+    var expenses by remember(userId, period, reload) {
+        mutableStateOf<List<ExpenseEntity>>(emptyList())
+    }
+    var loading by remember(userId, period, reload) { mutableStateOf(!inspecting) }
+    var error by remember(userId, period, reload) { mutableStateOf<String?>(null) }
     val maxY = 600f
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        reload++
+    }
+
+    // I keyed the loading effect to the account, period and reload value.
+    LaunchedEffect(userId, period, reload) {
+        if (inspecting) return@LaunchedEffect
+        val requestedPeriod = period
+        val requestedReload = reload
+        try {
+            val db = DatabaseProvider.get(context)
+
+            val loadRange = when (requestedPeriod) {
+                "week" -> historyShortcutRange("week")
+                "last_month" -> previousMonthRange()
+                else -> historyShortcutRange("month")
+            }
+
+            val rows = db.expenseDao().getForUserInRange(
+                userId,
+                loadRange.start,
+                loadRange.end,
+            )
+
+            if (requestedPeriod != period || requestedReload != reload) {
+                return@LaunchedEffect
+            }
+
+            expenses = rows
+            error = null
+            loading = false
+        } catch (_: Exception) {
+            if (requestedPeriod != period || requestedReload != reload) {
+                return@LaunchedEffect
+            }
+            error = "Could not load the graph. Please try again."
+            loading = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -140,6 +198,12 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
 
         Text("Selected: $period", color = TextSecondary)
         Text("From ${range.start} to ${range.end}", color = TextSecondary)
+
+        when {
+            loading -> Text("Loading graph...", color = TextSecondary)
+            error != null -> Text(error ?: "", color = Color(0xFFD64545))
+            else -> Text("Expenses in this period: ${expenses.size}", color = TextSecondary)
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
