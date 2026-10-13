@@ -35,3 +35,15 @@ internal fun historyShortcutRange(
     val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = today.timeZone }
     return HistoryDateRange(format.format(start.time), format.format(end.time))
 }
+// I moved to the first day of last month so September stays September at month-end.
+internal fun previousMonthRange(
+    today: Calendar = GregorianCalendar(),
+): HistoryDateRange {
+    val start = today.clone() as Calendar
+    start.set(Calendar.DAY_OF_MONTH, 1)
+    start.add(Calendar.MONTH, -1)
+    val end = start.clone() as Calendar
+    end.set(Calendar.DAY_OF_MONTH, end.getActualMaximum(Calendar.DAY_OF_MONTH))
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = today.timeZone }
+    return HistoryDateRange(format.format(start.time), format.format(end.time))
+}

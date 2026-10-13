@@ -77,6 +77,11 @@ private val weekData = listOf(
 fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     // I saved the selected period so rotation does not reset the graph.
     var period by rememberSaveable { mutableStateOf("month") }
+    val range = when (period) {
+        "week" -> historyShortcutRange("week")
+        "last_month" -> previousMonthRange()
+        else -> historyShortcutRange("month")
+    }
     val maxY = 600f
 
     Column(
@@ -134,6 +139,7 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
         }
 
         Text("Selected: $period", color = TextSecondary)
+        Text("From ${range.start} to ${range.end}", color = TextSecondary)
 
         Card(
             modifier = Modifier.fillMaxWidth(),
