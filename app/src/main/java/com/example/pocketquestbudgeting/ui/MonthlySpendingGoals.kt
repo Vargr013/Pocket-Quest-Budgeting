@@ -40,11 +40,20 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.layout.fillMaxWidth
+import kotlin.math.roundToInt
+
 
 private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF6B7C78)
 private val RowBg = Color(0xFFE8EEEC)
 private val CardShape = RoundedCornerShape(20.dp)
+private val ProgressTeal = Color(0xFF2A9D8F)
+private val ProgressAmber = Color(0xFFE9A825)
+private val ProgressRed = Color(0xFFD64545)
+private val ProgressTrack = Color(0xFF5E5E5E)
 
 @Composable
 internal fun MonthlySpendingGoals(userId: Long) {
@@ -54,6 +63,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
     var month by remember { mutableStateOf(historyShortcutRange("month")) }
     var reload by remember { mutableStateOf(0) }
     var goal by remember(month, reload) { mutableStateOf<BudgetGoalEntity?>(null) }
+    var spentCents by remember(month, reload) { mutableStateOf(0L) }    // I totalled this month's expenses so the dashboard can show progress against the monthly limits.
     var loading by remember(month, reload) { mutableStateOf(!inspecting) }
     var loadError by remember(month, reload) { mutableStateOf<String?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -82,9 +92,15 @@ internal fun MonthlySpendingGoals(userId: Long) {
         try {
             val db = DatabaseProvider.get(context)
             val saved = db.budgetGoalDao().getForMonth(userId, requestedMonth.start, requestedMonth.end)
+            val spent = db.expenseDao().getForUserInRange(
+                userId,
+                requestedMonth.start,
+                requestedMonth.end,
+            ).sumOf { it.amount }
             coroutineContext.ensureActive()
             if (month != requestedMonth || reload != requestedReload) return@LaunchedEffect
             goal = saved
+            spentCents = spent
             loading = false
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -119,6 +135,49 @@ internal fun MonthlySpendingGoals(userId: Long) {
                         Text("Minimum: ${formatBudgetAmount(saved.minimumAmount)}", fontSize = 20.sp, color = TextPrimary)
                         Text("Maximum: ${formatBudgetAmount(saved.maximumAmount)}", fontSize = 20.sp, color = TextPrimary)
                     }
+                    val minLimit = saved?.minimumAmount ?: 0L
+                    val maxLimit = saved?.maximumAmount ?: 0L
+                    val overMax = maxLimit > 0L && spentCents >= maxLimit
+                    val underMin = minLimit > 0L && spentCents < minLimit
+                    val barColor = when {
+                        overMax -> ProgressRed
+                        underMin -> ProgressAmber
+                        else -> ProgressTeal
+                    }
+                    val progress = if (maxLimit == 0L) 0f
+                    else (spentCents.toFloat() / maxLimit).coerceIn(0f, 1f)
+                    val percent = if (maxLimit == 0L) "—"
+                    else "${((spentCents * 100.0) / maxLimit).roundToInt()}%"
+
+                    Text(
+                        text = "Spent: ${formatBudgetAmount(spentCents)}",
+                        fontSize = 20.sp,
+                        color = TextPrimary,
+                    )
+                    if (maxLimit == 0L) {
+                        Text("No monthly max set", color = TextSecondary, fontSize = 15.sp)
+                    } else {
+                        Text(
+                            text = "$percent of monthly max",
+                            color = barColor,
+                            fontSize = 15.sp,
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        color = barColor,
+                        trackColor = ProgressTrack,
+                        strokeCap = StrokeCap.Round,
+                    )
+                    when {
+                        overMax -> Text("Over the monthly maximum.", color = ProgressRed)
+                        underMin -> Text("Below the monthly minimum.", color = ProgressAmber)
+                        saved != null -> Text("Within the monthly range.", color = ProgressTeal)
+                    }
+
                     TextButton(onClick = {
                         val current = historyShortcutRange("month")
                         if (current != month) {
