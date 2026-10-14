@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
 import com.example.pocketquestbudgeting.data.CategoryEntity
+import com.example.pocketquestbudgeting.data.BudgetGoalEntity
 import kotlinx.coroutines.CancellationException
 
 private val ScreenBg = Color(0xFFF4F7F6)
@@ -97,6 +98,10 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     var categories by remember(userId, period, reload) {
         mutableStateOf<List<CategoryEntity>>(emptyList())
     }
+    var monthGoal by remember(userId, period, reload) {
+        mutableStateOf<BudgetGoalEntity?>(null)
+    }
+    // I loaded the month's spend limits so the graph can label them as monthly, not daily.
     var loading by remember(userId, period, reload) { mutableStateOf(!inspecting) }
     var error by remember(userId, period, reload) { mutableStateOf<String?>(null) }
     
@@ -128,12 +133,24 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
             // I loaded category names in the same read so bar labels match the expense category ids.
             val loadedCategories = db.categoryDao().getForUser(userId)
 
+            val goalRange = if (requestedPeriod == "last_month") {
+                previousMonthRange()
+            } else {
+                historyShortcutRange("month")
+            }
+            val loadedGoal = db.budgetGoalDao().getForMonth(
+                userId,
+                goalRange.start,
+                goalRange.end,
+            )
+
             if (requestedPeriod != period || requestedReload != reload) {
                 return@LaunchedEffect
             }
 
             expenses = rows
             categories = loadedCategories
+            monthGoal = loadedGoal
             error = null
             loading = false
         } catch (cancelled: CancellationException) {
@@ -156,6 +173,9 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     val legendItems = remember(days) {
         days.flatMap { it.segments }.distinctBy { it.name }.sortedBy { it.name }
     }
+    val savedGoal = monthGoal
+    val hasGoal = savedGoal != null &&
+        (savedGoal.minimumAmount > 0L || savedGoal.maximumAmount > 0L)
 
     Column(
         modifier = Modifier
@@ -223,7 +243,26 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                 }
             }
 
-            expenses.isEmpty() -> Text("No spending in this period.", color = TextSecondary)
+            expenses.isEmpty() -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("No spending in this period.", color = TextSecondary)
+                    if (!hasGoal) {
+                        Text("No monthly spending goals set", color = TextSecondary)
+                    } else {
+                        val goal = savedGoal
+                        if (goal != null) {
+                            Text(
+                                "Monthly min: ${formatBudgetAmount(goal.minimumAmount)}",
+                                color = TextSecondary,
+                            )
+                            Text(
+                                "Monthly max: ${formatBudgetAmount(goal.maximumAmount)}",
+                                color = TextSecondary,
+                            )
+                        }
+                    }
+                }
+            }
             else -> {
                 Text("Expenses in this period: ${expenses.size}", color = TextSecondary)
                 Card(
@@ -322,6 +361,43 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
+
+                        if (!hasGoal) {
+                            Text(
+                                text = "No monthly spending goals set",
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                            )
+                        } else {
+                            val goal = savedGoal
+                            if (goal != null) {
+                                Text(
+                                    text = "Monthly min: ${formatBudgetAmount(goal.minimumAmount)}",
+                                    color = TextSecondary,
+                                    fontSize = 14.sp,
+                                )
+                            Text(
+                                text = "Monthly max: ${formatBudgetAmount(goal.maximumAmount)}",
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                            )
+                            if (period == "week" || period == "last_month") {
+                                Text(
+                                    text = "These are monthly limits, not daily or weekly targets.",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                            val tallestDay = days.maxOfOrNull { it.totalCents } ?: 0L
+                            if (goal.maximumAmount > tallestDay) {
+                                Text(
+                                    text = "Monthly max is above this chart.",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
 
                         Column(
                             modifier = Modifier.fillMaxWidth(),
