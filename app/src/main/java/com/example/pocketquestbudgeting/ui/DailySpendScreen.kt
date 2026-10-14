@@ -152,6 +152,10 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
         buildChartDays(expenses, categories, range, period)
     }
     val maxY = (days.maxOfOrNull { it.totalCents } ?: 1L).toFloat().coerceAtLeast(1f)
+    // I built the legend from the bars so each name keeps the same colour as the chart.
+    val legendItems = remember(days) {
+        days.flatMap { it.segments }.distinctBy { it.name }.sortedBy { it.name }
+    }
 
     Column(
         modifier = Modifier
@@ -323,21 +327,9 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                LegendItem("Rent", Rent)
-                                LegendItem("Entertainment", Entertainment)
+                            legendItems.forEach { item ->
+                                LegendItem(item.name, item.color)
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                LegendItem("Groceries", Groceries)
-                                LegendItem("Utilities", Utilities)
-                            }
-                            LegendItem("Transport", Transport)
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -348,13 +340,17 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                text = "Total this Week:",
+                                text = when (period) {
+                                    "week" -> "Total this week:"
+                                    "last_month" -> "Total last month:"
+                                     else -> "Total this month:"
+                                },
                                 fontSize = 14.sp,
                                 color = TextSecondary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "R2,290",
+                                text = formatBudgetAmount(expenses.sumOf { it.amount }),
                                 fontSize = 20.sp,
                                 color = Color.Black,
                             )
