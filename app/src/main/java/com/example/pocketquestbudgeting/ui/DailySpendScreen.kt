@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -98,7 +99,7 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     }
     var loading by remember(userId, period, reload) { mutableStateOf(!inspecting) }
     var error by remember(userId, period, reload) { mutableStateOf<String?>(null) }
-    val maxY = 600f
+    
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         reload++
@@ -145,6 +146,12 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
             loading = false
         }
     }
+
+    // only rebuild when expenses or names or dates change
+    val days = remember(expenses, categories, range, period) {
+        buildChartDays(expenses, categories, range, period)
+    }
+    val maxY = (days.maxOfOrNull { it.totalCents } ?: 1L).toFloat().coerceAtLeast(1f)
 
     Column(
         modifier = Modifier
@@ -225,6 +232,7 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        val chartScroll = rememberScrollState()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -233,13 +241,18 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxHeight()
-                                    .width(36.dp)
+                                    .width(52.dp)
                                     .padding(end = 4.dp),
                                 verticalArrangement = Arrangement.SpaceBetween,
                                 horizontalAlignment = Alignment.End,
                             ) {
-                                listOf("R600", "R400", "R200", "R0").forEach {
-                                    Text(it, fontSize = 10.sp, color = Color.Black)
+                                val top = days.maxOfOrNull { it.totalCents } ?: 0L
+                                listOf(top, top * 2 / 3, top / 3, 0L).forEach { cents ->
+                                    Text(
+                                        text = formatBudgetAmount(cents),
+                                        fontSize = 10.sp,
+                                        color = Color.Black,
+                                    )
                                 }
                             }
 
@@ -266,11 +279,12 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .horizontalScroll(chartScroll),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.Bottom,
                                 ) {
-                                    weekData.forEach { day ->
+                                    days.forEach { day ->
                                         StackedBar(
                                             day = day,
                                             maxY = maxY,
@@ -288,10 +302,11 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 36.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                                .padding(start = 52.dp)
+                                .horizontalScroll(chartScroll),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            weekData.forEach { day ->
+                            days.forEach { day ->
                                 Text(
                                     text = day.label,
                                     fontSize = 10.sp,
@@ -401,32 +416,31 @@ private fun StackedBar(
     maxY: Float,
     modifier: Modifier = Modifier,
 ) {
-    val segments = listOf(
-        day.rent to Rent,
-        day.groceries to Groceries,
-        day.transport to Transport,
-        day.entertainment to Entertainment,
-        day.utilities to Utilities,
-    )
+    val parts = day.segments.filter { it.cents > 0 }
 
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.Bottom,
     ) {
-        val emptyWeight = ((maxY - day.total).coerceAtLeast(0f)) / maxY
-        if (emptyWeight > 0f) {
-            Spacer(modifier = Modifier.weight(emptyWeight))
-        }
-        segments.asReversed().forEach { (value, color) ->
-            val w = (value / maxY).coerceAtLeast(0.001f)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(w)
-                    .background(color)
-                    .border(0.2.dp, Color.White),
-            )
-        }
+        if (parts.isEmpty()) {
+            Spacer(modifier = Modifier.weight(1f))
+        } else {
+            val emptyWeight = ((maxY - day.totalCents.toFloat()).coerceAtLeast(0f)) / maxY
+            if (emptyWeight > 0f) {
+                Spacer(modifier = Modifier.weight(emptyWeight))
+            }
+            parts.asReversed().forEach { segment ->
+                val w = (segment.cents.toFloat() / maxY).coerceAtLeast(0.001f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(w)
+                        .background(segment.color)
+                        .border(0.2.dp, Color.White),
+                    )
+                }
+
+            }
     }
 }
 
