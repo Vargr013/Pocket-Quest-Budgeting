@@ -44,6 +44,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
+import com.example.pocketquestbudgeting.data.CategoryEntity
 import kotlinx.coroutines.CancellationException
 
 private val ScreenBg = Color(0xFFF4F7F6)
@@ -61,26 +62,20 @@ private val Utilities = Color(0xFF3D7EA6)
 
 private val CardShape = RoundedCornerShape(20.dp)
 
+private data class SpendSegment(
+    val name: String,
+    val cents: Long,
+    val color: Color,
+)
+
 private data class DaySpend(
     val label: String,
-    val rent: Float,
-    val groceries: Float,
-    val transport: Float,
-    val entertainment: Float,
-    val utilities: Float,
+    val segments: List<SpendSegment>,
 ) {
-    val total: Float get() = rent + groceries + transport + entertainment + utilities
+    val totalCents: Long get() = segments.sumOf { it.cents }
 }
 
-private val weekData = listOf(
-    DaySpend("Mon", 80f, 80f, 80f, 80f, 80f),
-    DaySpend("Tue", 52f, 52f, 52f, 52f, 52f),
-    DaySpend("Wed", 47f, 47f, 47f, 47f, 47f),
-    DaySpend("Thu", 66f, 66f, 66f, 66f, 66f),
-    DaySpend("Fri", 28f, 28f, 28f, 28f, 28f),
-    DaySpend("Sat", 48f, 48f, 48f, 48f, 48f),
-    DaySpend("Sun", 106f, 106f, 106f, 106f, 106f),
-)
+private val CategoryColors = listOf(Rent, Groceries, Transport, Entertainment, Utilities)
 
 @Composable
 fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
@@ -97,6 +92,9 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     var reload by remember { mutableStateOf(0) }
     var expenses by remember(userId, period, reload) {
         mutableStateOf<List<ExpenseEntity>>(emptyList())
+    }
+    var categories by remember(userId, period, reload) {
+        mutableStateOf<List<CategoryEntity>>(emptyList())
     }
     var loading by remember(userId, period, reload) { mutableStateOf(!inspecting) }
     var error by remember(userId, period, reload) { mutableStateOf<String?>(null) }
@@ -126,11 +124,15 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
                 loadRange.end,
             )
 
+            // I loaded category names in the same read so bar labels match the expense category ids.
+            val loadedCategories = db.categoryDao().getForUser(userId)
+
             if (requestedPeriod != period || requestedReload != reload) {
                 return@LaunchedEffect
             }
 
             expenses = rows
+            categories = loadedCategories
             error = null
             loading = false
         } catch (cancelled: CancellationException) {
@@ -347,6 +349,49 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
 
             }
         }
+    }
+}
+
+private fun buildChartDays(
+    expenses: List<ExpenseEntity>,
+    categories: List<CategoryEntity>,
+    range: HistoryDateRange,
+    period: String,
+): List<DaySpend> {
+    val nameById = categories.associate { it.id to it.name }
+    val names = expenses
+        .map { nameById[it.categoryId] ?: "Unknown" }
+        .distinct()
+        .sorted()
+    val colorByName = names.mapIndexed { index, name ->
+        name to CategoryColors[index % CategoryColors.size]
+    }.toMap()
+    // Group rows with same date together
+    val byDate = expenses.groupBy { it.date }
+    // java.text means no extra imports needed
+    val weekLabel = java.text.SimpleDateFormat("EEE", java.util.Locale.US)
+    val parseDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+    return datesInRange(range.start, range.end).map { date ->
+        val label = if (period == "week") {
+            val parsed = parseDate.parse(date)
+            if (parsed != null) weekLabel.format(parsed) else date
+        } else {
+            date.takeLast(2).trimStart('0').ifEmpty { "0" }
+        }
+        val dayExpenses = byDate[date].orEmpty()
+        val segments = dayExpenses
+            .groupBy { it.categoryId }
+            .map { (categoryId, list) ->
+                val name = nameById[categoryId] ?: "Unknown"
+                SpendSegment(
+                    name = name,
+                    // If same category is multiple times on one day, then add amounts in single block
+                    cents = list.sumOf { it.amount },
+                    color = colorByName[name] ?: CategoryColors[0],
+                )
+            }
+            .filter { it.cents > 0 }
+        DaySpend(label = label, segments = segments)
     }
 }
 

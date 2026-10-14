@@ -47,3 +47,21 @@ internal fun previousMonthRange(
     val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = today.timeZone }
     return HistoryDateRange(format.format(start.time), format.format(end.time))
 }
+// I walked one calendar day at a time so empty days stay on the graph.
+internal fun datesInRange(
+    start: String,
+    end: String,
+    today: Calendar = GregorianCalendar(),
+): List<String> {
+    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = today.timeZone }
+    val cursor = today.clone() as Calendar
+    cursor.time = format.parse(start) ?: return emptyList()
+    val dates = mutableListOf<String>()
+    while (true) {
+        val stamp = format.format(cursor.time)
+        if (stamp > end) break
+        dates.add(stamp)
+        cursor.add(Calendar.DAY_OF_MONTH, 1)
+    }
+    return dates
+}
