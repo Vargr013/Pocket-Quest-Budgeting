@@ -19,3 +19,15 @@ keystore.properties
 # Operating system files
 .DS_Store
 Thumbs.db
+*.md
+
+# Shared Firebase contract/setup remain reviewable beside the existing Markdown exclusion.
+!docs/FIREBASE_INTEGRATION.md
+!docs/FIREBASE_SETUP.md
+
+# Local Firebase client selection and emulator output
+**/google-services.json
+.firebase/
+*-debug.log
+*-debug.*.log
+node_modules/

@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isUuid(value) {
+      return value.matches('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+    }
+
+    match /users/{uid}/receipts/{expenseId}/{receiptJobId} {
+      function validPath() {
+        return isUuid(expenseId) && isUuid(receiptJobId);
+      }
+
+      allow get: if isOwner(uid) && validPath();
+      allow list: if false;
+      // I checked incoming size/type and rejected custom ownership metadata (Google, 2026y).
+      allow create: if isOwner(uid) && validPath()
+        && resource == null
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png']
+        && request.resource.metadata.keys().hasOnly([]);
+      // I kept published paths immutable; replacement uses a new receipt job ID.
+      allow update: if false;
+      // I kept cleanup separate because deletes have no incoming file metadata (Google, 2026ab).
+      allow delete: if isOwner(uid) && validPath();
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

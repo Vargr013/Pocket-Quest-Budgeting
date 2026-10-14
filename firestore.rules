@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // I checked the UID in the path instead of trusting a submitted owner (Google, 2026z).
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validSetup() {
+      let data = request.resource.data;
+      // I allowed only the setup fields; record schemas belong to later slices (Google, 2026p).
+      return data.keys().hasAll(['schemaVersion', 'username', 'categoriesInitialized'])
+        && data.keys().hasOnly(['schemaVersion', 'username', 'categoriesInitialized'])
+        && data.schemaVersion is int && data.schemaVersion == 1
+        && data.username is string && data.username.size() > 0
+        && data.categoriesInitialized is bool && data.categoriesInitialized == false;
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if isOwner(uid) && validSetup();
+      allow update: if isOwner(uid) && validSetup()
+        && request.resource.data.username == resource.data.username
+        && resource.data.categoriesInitialized == false;
+      allow delete: if false;
+    }
+
+    // I left all nested records closed until their validation and mutation protocol exist.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

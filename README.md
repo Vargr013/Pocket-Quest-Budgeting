@@ -9,10 +9,12 @@ Android budgeting app (Jetpack Compose). Track expenses by category, attach opti
 ## Requirements
 
 - Android Studio (recent stable)
-- JDK 17
+- JDK 21 for the build and Firebase emulator checks
 - Android device or emulator: **API 24+** (`minSdk 24`, `targetSdk 36`)
 
 ## Run the app
+
+Complete the [Firebase debug configuration and rules-test setup](docs/FIREBASE_SETUP.md) before Gradle sync. Without a real project, run `npm run firebase:demo` to generate synthetic debug client configuration. This slice adds SDK/configuration support; login and financial data still use local Room storage.
 
 1. Open this folder in Android Studio (**File → Open**).
 2. Wait for Gradle sync to finish.
