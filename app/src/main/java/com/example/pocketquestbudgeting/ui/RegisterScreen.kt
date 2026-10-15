@@ -21,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +47,9 @@ private val LinkBlue = Color(0xFF013673)
 fun RegisterScreen(
     onRegister: (username: String, password: String, confirmPassword: String) -> Unit,
     errorMessage: String? = null,
+    busy: Boolean = false,
     onBackToLogin: () -> Unit = {},
+    onCancel: () -> Unit = {},
 ) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -84,6 +87,7 @@ fun RegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             OutlinedTextField(
+                enabled = !busy,
                 value = username,
                 onValueChange = { username = it },
                 label = { Text(stringResource(R.string.username)) },
@@ -92,6 +96,7 @@ fun RegisterScreen(
             )
 
             OutlinedTextField(
+                enabled = !busy,
                 value = password,
                 onValueChange = { password = it },
                 label = { Text(stringResource(R.string.password)) },
@@ -102,6 +107,7 @@ fun RegisterScreen(
             )
 
             OutlinedTextField(
+                enabled = !busy,
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
                 label = { Text(stringResource(R.string.confirm_password)) },
@@ -123,7 +129,14 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { onRegister(username, password, confirmPassword) },
+                onClick = {
+                    val submittedPassword = password
+                    val submittedConfirmation = confirmPassword
+                    password = ""
+                    confirmPassword = ""
+                    onRegister(username, submittedPassword, submittedConfirmation)
+                },
+                enabled = !busy,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = RegisterTeal,
@@ -134,8 +147,11 @@ fun RegisterScreen(
                     .fillMaxWidth()
                     .height(39.dp),
             ) {
-                Text(text = stringResource(R.string.register))
+                Text(text = if (busy) "Registering..." else stringResource(R.string.register))
             }
+
+            Text("Usernames are case-sensitive and cannot be renamed. Use 1–32 UTF-8 bytes and keep your password safe; email password reset is unavailable.")
+            if (busy) TextButton(onClick = onCancel) { Text("Cancel registration") }
 
             Text(
                 text = stringResource(R.string.back_to_login),
@@ -144,7 +160,7 @@ fun RegisterScreen(
                 lineHeight = 13.sp,
                 modifier = Modifier
                     .padding(top = 8.dp)
-                    .clickable(onClick = onBackToLogin),
+                    .clickable(enabled = !busy, onClick = onBackToLogin),
             )
         }
     }

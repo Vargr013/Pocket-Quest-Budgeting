@@ -4,7 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- I excluded local account state from new backups and device transfers (Google, 2026aj). -->
     <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/account_data_extraction_rules"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"

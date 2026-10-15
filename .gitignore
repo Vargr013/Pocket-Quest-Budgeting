@@ -31,3 +31,4 @@ Thumbs.db
 *-debug.log
 *-debug.*.log
 node_modules/
+*.md

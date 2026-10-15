@@ -32,9 +32,9 @@ jobs:
         run: npm ci
       - name: Prepare synthetic debug client configuration
         run: npm run firebase:demo
-      - name: Compile and lint Android
+      - name: Build, lint and test Android
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug :app:lintDebug --console=plain
+          ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest --console=plain
       - name: Check Firestore and Storage rules
         run: npm run test:rules

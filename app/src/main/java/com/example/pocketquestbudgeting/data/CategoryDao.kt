@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
-    // I kept dates in the join so categories without spending still appear (SQLite, 2026).
+    // I kept dates in the join so categories without spending still appear (SQLite, 2026b).
     // I used SUM to total the stored cents for each category (SQLite, 2025).
     @Query("""
         SELECT c.id AS categoryId, c.name AS categoryName,
@@ -41,7 +41,7 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :categoryId AND userId = :userId")
     suspend fun getForUserById(userId: Long, categoryId: Long): CategoryEntity?
 
-    // I kept categories with no expenses using LEFT JOIN (SQLite, 2026).
+    // I kept categories with no expenses using LEFT JOIN (SQLite, 2026b).
     // I totalled the month with SUM and treated a missing sum as zero (SQLite, 2025).
     @Query("""
         SELECT

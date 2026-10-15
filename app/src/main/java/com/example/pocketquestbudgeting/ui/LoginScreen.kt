@@ -26,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,15 +62,17 @@ private val FieldShape = RoundedCornerShape(20.dp)
 
 @Composable
 fun LoginScreen(
-    onLogin: (username: String, password: String) -> Unit,
+    onLogin: (username: String, password: String, remember: Boolean) -> Unit,
+    busy: Boolean = false,
     errorMessage: String? = null,
     onRegister: () -> Unit = {},
     onNeedHelp: () -> Unit = {},
     onForgotPassword: () -> Unit = {},
+    onCancel: () -> Unit = {},
 ) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by rememberSaveable { mutableStateOf(false) }
+    var rememberMe by rememberSaveable { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -148,6 +151,7 @@ fun LoginScreen(
                         value = username,
                         onValueChange = { username = it },
                         placeholder = "Empty",
+                        enabled = !busy,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -158,6 +162,7 @@ fun LoginScreen(
                         onValueChange = { password = it },
                         placeholder = "Empty",
                         isPassword = true,
+                        enabled = !busy,
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -169,7 +174,7 @@ fun LoginScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { rememberMe = !rememberMe },
+                            modifier = Modifier.clickable(enabled = !busy) { rememberMe = !rememberMe },
                         ) {
                             Text("Remember Me", fontSize = 11.sp, color = LinkBlue)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -201,7 +206,12 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Button(
-                        onClick = { onLogin(username, password) },
+                        onClick = {
+                            val submittedPassword = password
+                            password = ""
+                            onLogin(username, submittedPassword, rememberMe)
+                        },
+                        enabled = !busy,
                         shape = FieldShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LoginTeal,
@@ -213,7 +223,7 @@ fun LoginScreen(
                             .fillMaxWidth()
                             .height(39.dp),
                     ) {
-                        Text("Login", fontSize = 20.sp)
+                        Text(if (busy) "Logging in..." else "Login", fontSize = 20.sp)
                     }
 
                     Text(
@@ -223,8 +233,10 @@ fun LoginScreen(
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .padding(top = 16.dp)
-                            .clickable(onClick = onRegister),
+                            .clickable(enabled = !busy, onClick = onRegister),
                     )
+
+                    if (busy) TextButton(onClick = onCancel) { Text("Cancel login") }
 
                     Spacer(modifier = Modifier.height(48.dp))
 
@@ -248,6 +260,7 @@ private fun LoginPlainField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isPassword: Boolean = false,
+    enabled: Boolean = true,
     height: Dp = 35.dp,
 ) {
     Box(
@@ -262,6 +275,7 @@ private fun LoginPlainField(
             Text(placeholder, fontSize = 11.sp, color = TextSecondary)
         }
         BasicTextField(
+            enabled = enabled,
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
@@ -288,6 +302,6 @@ private fun LoginPlainField(
 @Composable
 private fun LoginScreenPreview() {
     MaterialTheme {
-        LoginScreen(onLogin = { _, _ -> })
+        LoginScreen(onLogin = { _, _, _ -> })
     }
 }

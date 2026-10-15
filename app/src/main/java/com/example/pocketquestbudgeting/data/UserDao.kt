@@ -16,24 +16,22 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :id")
     suspend fun getById(id: Long): UserEntity?
 
-    @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
-    suspend fun getByUsername(username: String): UserEntity?
+    @Query("SELECT * FROM users WHERE firebaseUid = :uid")
+    suspend fun getByFirebaseUid(uid: String): UserEntity?
 
-    @Query(
-        "SELECT * FROM users WHERE username = :username AND password = :password LIMIT 1"
-    )
-    suspend fun findByCredentials(username: String, password: String): UserEntity?
+    @Query("SELECT * FROM users WHERE firebaseUid IS NULL ORDER BY username, id")
+    suspend fun getUnlinked(): List<UserEntity>
 
-    // I checked the name and saved the account together so login can find the same row.
+    @Query("""
+        UPDATE users SET firebaseUid = :uid, legacyPasswordSalt = NULL,
+            legacyPasswordHash = NULL, importPending = 1
+        WHERE id = :localUserId AND firebaseUid IS NULL
+    """)
+    suspend fun linkUnclaimed(localUserId: Long, uid: String): Int
+
     @Transaction
-    suspend fun register(username: String, password: String): RegisterResult {
-        val name = username.trim()
-        require(name.isNotBlank()) { "Enter a username." }
-        require(password.isNotBlank()) { "Enter a password." }
-        if (getByUsername(name) != null) return RegisterResult.USERNAME_TAKEN
-        insert(UserEntity(username = name, password = password))
-        return RegisterResult.CREATED
+    suspend fun createCloudUser(uid: String, username: String): Long {
+        require(uid.isNotBlank())
+        return getByFirebaseUid(uid)?.id ?: insert(UserEntity(username = username, firebaseUid = uid))
     }
 }
-
-enum class RegisterResult { CREATED, USERNAME_TAKEN }
