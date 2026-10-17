@@ -131,9 +131,12 @@ fun AddExpenseScreen(
                 loadedExpense = true
             }
             db.categoryDao().observeForUser(userId).collect { savedCategories ->
-                categories = savedCategories
+                val originalCategory = expenseId?.let { db.expenseDao().getForUserById(userId, it)?.categoryId }
+                    ?.let { db.categoryDao().getForUserById(userId, it) }
+                val available = if (originalCategory?.isArchived == true) savedCategories + originalCategory else savedCategories
+                categories = available
                 loadingCategories = false
-                if (selectedCategoryId != null && savedCategories.none { it.id == selectedCategoryId }) {
+                if (selectedCategoryId != null && categories.none { it.id == selectedCategoryId }) {
                     selectedCategoryId = null
                     errors = errors + ("category" to "This category is no longer available. Select another one.")
                 }
@@ -398,7 +401,10 @@ fun AddExpenseScreen(
                         check(!editing || editUserId == userId)
                         // I kept the category check and expense save in one transaction (Google, 2026j).
                         val saved = db.withTransaction {
-                            if (db.categoryDao().getForUserById(userId, categoryId) == null) {
+                            val category = db.categoryDao().getForUserById(userId, categoryId)
+                            val original = expenseId?.let { db.expenseDao().getForUserById(userId, it) }
+                            // I kept old archived references, but rejected a new assignment to one.
+                            if (category == null || (category.isArchived && original?.categoryId != categoryId)) {
                                 return@withTransaction -1
                             }
                             if (expenseId != null) {

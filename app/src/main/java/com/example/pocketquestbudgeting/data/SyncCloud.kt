@@ -7,6 +7,8 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.Locale
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -30,11 +32,13 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
         val owner = firestore.collection("users").document(operation.uid)
         val record = owner.collection(operation.recordType).document(operation.recordId)
         val acknowledgement = owner.collection("mutations").document(operation.mutationId)
+        val namesRef = owner.collection("categoryNames").document("index")
         // I checked the revision and wrote the retained receipt in one transaction (Google, 2026x).
         return firestore.runTransaction { transaction ->
             check(stillCurrent()) { "Session changed." }
             val receipt = transaction.get(acknowledgement)
             val current = transaction.get(record)
+            val nameIndex = if (operation.recordType == "categories") transaction.get(namesRef) else null
             if (receipt.exists()) {
                 check(receipt.getString("fingerprint") == fingerprint && receipt.getLong("revision") == base + 1) {
                     "Mutation receipt does not match the queued operation."
@@ -51,6 +55,16 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                         "updatedAt" to FieldValue.serverTimestamp(), "isDeleted" to operation.isDeleted,
                         "deletedAt" to if (operation.isDeleted) FieldValue.serverTimestamp() else null,
                     )
+                    if (nameIndex != null) {
+                        val names = categoryNames(nameIndex).toMutableMap()
+                        val newKey = categoryNameKey(fields["name"] as String)
+                        val oldKey = current.getString("name")?.let { categoryNameKey(it) }
+                        if (!operation.isDeleted && names[newKey] != null && names[newKey] != operation.recordId) throw CategoryNameTaken()
+                        if (oldKey != null && names[oldKey] == operation.recordId) names.remove(oldKey)
+                        if (!operation.isDeleted) names[newKey] = operation.recordId
+                        transaction.set(namesRef, mapOf("names" to names, "recordId" to operation.recordId,
+                            "lastMutationId" to operation.mutationId))
+                    }
                     transaction.set(record, data)
                     transaction.set(acknowledgement, mapOf(
                         "recordType" to operation.recordType, "recordId" to operation.recordId,
@@ -60,6 +74,53 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                 }
             }
         }.awaitSync()
+    }
+
+    suspend fun initializeCategories(account: SyncAccount, username: String, localEmpty: Boolean, stillCurrent: () -> Boolean) {
+        val owner = firestore.collection("users").document(account.uid)
+        // I read the server first; an offline-empty cache cannot decide account defaults (Google, 2026l).
+        val existing = owner.collection("categories").get(Source.SERVER).awaitSync()
+        check(stillCurrent()) { "Session changed." }
+        val operations = defaultCategories.map { (id, name) ->
+            SyncOperation(mutationId = UUID.randomUUID().toString(), uid = account.uid, userId = account.localUserId,
+                recordType = "categories", recordId = id, payload = SyncMapping.encode("categories",
+                    mapOf("name" to name, "minimumCents" to 0L, "maximumCents" to 0L)), isDeleted = false, baseRevision = 0)
+        }
+        val indexRef = owner.collection("categoryNames").document("index")
+        // I made setup and all four reserved defaults atomic so concurrent devices reuse one set (Google, 2026x).
+        try { firestore.runTransaction { transaction ->
+            check(stillCurrent()) { "Session changed." }
+            val setup = transaction.get(owner)
+            val index = transaction.get(indexRef)
+            val defaults = operations.map { transaction.get(owner.collection("categories").document(it.recordId)) }
+            val seed = localEmpty && existing.isEmpty && !index.exists() && setup.getBoolean("categoriesInitialized") != true
+                && defaults.none { it.exists() }
+            if (!index.exists()) {
+                check(existing.isEmpty) { "Existing cloud categories need their name index reconciled before setup." }
+                transaction.set(indexRef, mapOf("names" to if (seed) defaultCategories.entries.associate { categoryNameKey(it.value) to it.key } else emptyMap<String, String>(),
+                    "recordId" to if (seed) "defaults" else "initialized", "lastMutationId" to ""))
+            }
+            if (seed) operations.forEach { operation ->
+                transaction.set(owner.collection("categories").document(operation.recordId), SyncMapping.decode("categories", operation.payload) + mapOf(
+                    "schemaVersion" to 1L, "revision" to 1L, "lastMutationId" to operation.mutationId,
+                    "updatedAt" to FieldValue.serverTimestamp(), "isDeleted" to false, "deletedAt" to null))
+                transaction.set(owner.collection("mutations").document(operation.mutationId), mapOf(
+                    "recordType" to "categories", "recordId" to operation.recordId, "baseRevision" to 0L, "revision" to 1L,
+                    "fingerprint" to SyncMapping.fingerprint(operation)))
+            }
+            check(stillCurrent()) { "Session changed." }
+            transaction.set(owner, mapOf("schemaVersion" to 1L, "username" to (setup.getString("username") ?: username),
+                "categoriesInitialized" to true))
+        }.awaitSync()
+        } catch (error: com.google.firebase.firestore.FirebaseFirestoreException) {
+            if (error.code != com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) throw error
+            check(stillCurrent()) { "Session changed." }
+            // I checked completed setup after a competing initializer won; stale default writes stay denied.
+            val completed = owner.get(Source.SERVER).awaitSync().getBoolean("categoriesInitialized") == true
+            val indexed = indexRef.get(Source.SERVER).awaitSync().exists()
+            if (!completed || !indexed) throw error
+            check(stillCurrent()) { "Session changed." }
+        }
     }
 
     override suspend fun download(account: SyncAccount, type: String): List<SyncRecord> {
@@ -93,3 +154,19 @@ internal suspend fun <T> Task<T>.awaitSync(): T = suspendCancellableCoroutine { 
         else continuation.resumeWithException(task.exception ?: IllegalStateException("Cloud request failed."))
     }
 }
+
+private fun categoryNames(snapshot: DocumentSnapshot): Map<String, String> {
+    if (!snapshot.exists()) return emptyMap()
+    val names = snapshot.get("names") as? Map<*, *> ?: error("Invalid category name index.")
+    return names.entries.associate { (key, value) -> (key as String) to (value as String) }
+}
+
+internal class CategoryNameTaken : IllegalStateException("Category name is already in use.")
+
+internal val defaultCategories = linkedMapOf(
+    "default-groceries" to "Groceries", "default-transport" to "Transport",
+    "default-entertainment" to "Entertainment", "default-rent" to "Rent",
+)
+
+// I prefixed the lowercase key so display names could keep reserved punctuation (Google, 2020).
+internal fun categoryNameKey(name: String) = "n:" + name.lowercase(Locale.ROOT)

@@ -17,6 +17,10 @@ object SyncMapping {
 
     fun encode(type: String, values: Map<String, Any?>): String {
         require(values.keys == fields[type]) { "Use the exact agreed business fields." }
+        if (type == "categories") {
+            val name = values["name"] as? String ?: error("Invalid category name.")
+            require(name.isNotBlank() && name == name.trim()) { "Use a nonblank trimmed category name." }
+        }
         val json = JSONObject()
         values.toSortedMap().forEach { (key, value) ->
             // I kept cents as integers and excluded device paths and credentials (Google, 2026v).

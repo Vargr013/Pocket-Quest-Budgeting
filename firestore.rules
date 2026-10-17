@@ -1,34 +1,135 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // I checked the UID in the path instead of trusting a submitted owner (Google, 2026z).
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
-    }
-
-    function validSetup() {
-      let data = request.resource.data;
-      // I allowed only the setup fields; record schemas belong to later slices (Google, 2026p).
+    function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+    // I used the same trimmed display text and lowercase key as the client (Google, 2020).
+    function nameKey(name) { return 'n:' + name.lower(); }
+    function stableId(id) { return id.matches('[A-Za-z0-9_-]{1,80}'); }
+    function mutationId(id) { return id.matches('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'); }
+    function categoryPath(uid, id) { return /databases/$(database)/documents/users/$(uid)/categories/$(id); }
+    function receiptPath(uid, id) { return /databases/$(database)/documents/users/$(uid)/mutations/$(id); }
+    function indexPath(uid) { return /databases/$(database)/documents/users/$(uid)/categoryNames/index; }
+    function setupFields(data) {
       return data.keys().hasAll(['schemaVersion', 'username', 'categoriesInitialized'])
         && data.keys().hasOnly(['schemaVersion', 'username', 'categoriesInitialized'])
         && data.schemaVersion is int && data.schemaVersion == 1
-        && data.username is string && data.username.size() > 0
-        && data.categoriesInitialized is bool && data.categoriesInitialized == false;
+        && data.username is string && data.username.size() > 0 && data.categoriesInitialized is bool;
     }
-
+    function validCategory(data) {
+      // I checked the exact fields and integer cents before accepting a category (Google, 2026p).
+      return data.keys().hasAll(['name', 'minimumCents', 'maximumCents', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['name', 'minimumCents', 'maximumCents', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.name is string && data.name.size() > 0 && data.name.trim() == data.name
+        && data.minimumCents is int && data.maximumCents is int
+        && data.minimumCents >= 0 && data.maximumCents >= data.minimumCents
+        && data.schemaVersion is int && data.schemaVersion == 1
+        && data.revision is int && data.revision > 0
+        && mutationId(data.lastMutationId) && data.updatedAt == request.time
+        && data.isDeleted is bool
+        && (data.isDeleted ? data.deletedAt == request.time : data.deletedAt == null);
+    }
+    function matchingReceipt(uid, id, data, base) {
+      let path = receiptPath(uid, data.lastMutationId);
+      let receipt = getAfter(path).data;
+      // I required a new receipt in the same atomic write (Google, 2026z).
+      return !exists(path) && receipt.recordType == 'categories' && receipt.recordId == id
+        && receipt.baseRevision == base && receipt.revision == data.revision;
+    }
+    function matchingIndex(uid, id, data) {
+      let index = getAfter(indexPath(uid)).data;
+      return index.recordId == id && index.lastMutationId == data.lastMutationId
+        && (data.isDeleted ? index.names.get(nameKey(data.name), '') != id : index.names.get(nameKey(data.name), '') == id);
+    }
+    function defaultRecord(uid, id, name) {
+      let data = getAfter(categoryPath(uid, id)).data;
+      return data.name == name && data.minimumCents == 0 && data.maximumCents == 0
+        && data.revision == 1 && !data.isDeleted;
+    }
+    function defaultIndex(uid, id, data) {
+      let index = getAfter(indexPath(uid)).data;
+      return !exists(indexPath(uid)) && index.recordId == 'defaults' && index.lastMutationId == ''
+        && id in ['default-groceries', 'default-transport', 'default-entertainment', 'default-rent']
+        && data.minimumCents == 0 && data.maximumCents == 0 && !data.isDeleted
+        && index.names.get(nameKey(data.name), '') == id;
+    }
+    function setupComplete(uid) {
+      return existsAfter(indexPath(uid));
+    }
     match /users/{uid} {
       allow get: if isOwner(uid);
-      allow list: if false;
-      allow create: if isOwner(uid) && validSetup();
-      allow update: if isOwner(uid) && validSetup()
+      allow create: if isOwner(uid) && setupFields(request.resource.data)
+        && (!request.resource.data.categoriesInitialized || setupComplete(uid));
+      allow update: if isOwner(uid) && setupFields(request.resource.data)
         && request.resource.data.username == resource.data.username
-        && resource.data.categoriesInitialized == false;
+        && (!resource.data.categoriesInitialized || request.resource.data.categoriesInitialized)
+        && (!request.resource.data.categoriesInitialized || setupComplete(uid));
+      allow list, delete: if false;
+    }
+    match /users/{uid}/categories/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && stableId(id) && validCategory(request.resource.data)
+        && request.resource.data.revision == 1
+        && matchingReceipt(uid, id, request.resource.data, 0)
+        && (matchingIndex(uid, id, request.resource.data) || defaultIndex(uid, id, request.resource.data));
+      allow update: if isOwner(uid) && validCategory(request.resource.data) && !resource.data.isDeleted
+        && request.resource.data.revision == resource.data.revision + 1
+        && (!request.resource.data.isDeleted || (request.resource.data.name == resource.data.name
+          && request.resource.data.minimumCents == resource.data.minimumCents
+          && request.resource.data.maximumCents == resource.data.maximumCents))
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision)
+        && matchingIndex(uid, id, request.resource.data);
       allow delete: if false;
     }
-
-    // I left all nested records closed until their validation and mutation protocol exist.
-    match /{document=**} {
-      allow read, write: if false;
+    match /users/{uid}/mutations/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && mutationId(id)
+        && request.resource.data.keys().hasAll(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
+        && request.resource.data.keys().hasOnly(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
+        && request.resource.data.recordType == 'categories' && stableId(request.resource.data.recordId)
+        && request.resource.data.baseRevision is int && request.resource.data.baseRevision >= 0
+        && request.resource.data.revision is int && request.resource.data.revision == request.resource.data.baseRevision + 1
+        && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('[a-f0-9]{64}')
+        && getAfter(categoryPath(uid, request.resource.data.recordId)).data.lastMutationId == id
+        && getAfter(categoryPath(uid, request.resource.data.recordId)).data.revision == request.resource.data.revision
+        && (exists(categoryPath(uid, request.resource.data.recordId))
+          ? get(categoryPath(uid, request.resource.data.recordId)).data.revision == request.resource.data.baseRevision
+          : request.resource.data.baseRevision == 0);
+      allow update, delete: if false;
     }
+    function validIndex(uid, data, oldNames) {
+      let id = data.recordId;
+      let record = getAfter(categoryPath(uid, id)).data;
+      let old = exists(categoryPath(uid, id)) ? nameKey(get(categoryPath(uid, id)).data.name) : nameKey(record.name);
+      let key = nameKey(record.name);
+      return data.keys().hasAll(['names', 'recordId', 'lastMutationId'])
+        && data.keys().hasOnly(['names', 'recordId', 'lastMutationId']) && data.names is map
+        && stableId(id) && mutationId(data.lastMutationId) && record.lastMutationId == data.lastMutationId
+        && !exists(receiptPath(uid, data.lastMutationId)) && existsAfter(receiptPath(uid, data.lastMutationId))
+        && data.names.diff(oldNames).affectedKeys().hasOnly([old, key])
+        && (record.isDeleted ? data.names.get(key, '') != id : data.names.get(key, '') == id)
+        && (record.isDeleted || oldNames.get(key, id) == id)
+        && (old == key || !(old in data.names));
+    }
+    function initialIndex(uid, data) {
+      let setup = /databases/$(database)/documents/users/$(uid);
+      return data.keys().hasAll(['names', 'recordId', 'lastMutationId'])
+        && data.keys().hasOnly(['names', 'recordId', 'lastMutationId']) && data.lastMutationId == ''
+        && getAfter(setup).data.categoriesInitialized == true
+        && (data.recordId == 'initialized' && data.names == {}
+          || data.recordId == 'defaults' && (!exists(setup) || get(setup).data.categoriesInitialized == false)
+            && data.names == {'n:groceries': 'default-groceries', 'n:transport': 'default-transport',
+              'n:entertainment': 'default-entertainment', 'n:rent': 'default-rent'}
+            && defaultRecord(uid, 'default-groceries', 'Groceries')
+            && defaultRecord(uid, 'default-transport', 'Transport')
+            && defaultRecord(uid, 'default-entertainment', 'Entertainment')
+            && defaultRecord(uid, 'default-rent', 'Rent'));
+    }
+    match /users/{uid}/categoryNames/index {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid) && (initialIndex(uid, request.resource.data) || validIndex(uid, request.resource.data, {}));
+      allow update: if isOwner(uid) && validIndex(uid, request.resource.data, resource.data.names);
+      allow list, delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
   }
 }

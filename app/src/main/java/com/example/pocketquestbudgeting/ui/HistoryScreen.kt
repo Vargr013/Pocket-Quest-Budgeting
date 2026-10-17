@@ -130,7 +130,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
 
             val (loadedExpenses, anyExpenses, loadedCategories) = db.withTransaction {
                 val dao = db.expenseDao()
-                val currentCategories = db.categoryDao().getForUser(userId)
+                val currentCategories = db.categoryDao().getAllForUser(userId)
                 val selectedCategory = requestedCategory?.takeIf { id -> currentCategories.any { it.id == id } }
                 val rows = dao.getForUserFiltered(
                     userId,

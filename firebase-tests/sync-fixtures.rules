@@ -1,5 +1,5 @@
 rules_version = '2';
-// Test transport only: never deploy. Production records stay denied in firestore.rules.
+// I kept these owner-only fixtures for protocol tests; never deploy them.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{uid}/{document=**} {

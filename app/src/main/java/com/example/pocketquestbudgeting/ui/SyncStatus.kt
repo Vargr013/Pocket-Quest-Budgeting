@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.PocketQuestSync
 import com.example.pocketquestbudgeting.data.SyncAccount
@@ -31,13 +32,15 @@ internal fun SyncStatus(account: SyncAccount) {
     val db = remember(context) { DatabaseProvider.get(context) }
     val operations by remember(account.uid) { db.syncDao().observe(account.uid) }.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
+    val work by remember(account.uid) { androidx.work.WorkManager.getInstance(context)
+        .getWorkInfosForUniqueWorkFlow("pocket-sync-${account.uid}") }.collectAsState(emptyList())
     var review by remember { mutableStateOf(false) }
     var server by remember { mutableStateOf(emptyList<SyncRecord>()) }
     var message by remember { mutableStateOf<String?>(null) }
     val issues = operations.filter { it.state != "PENDING" }
     LaunchedEffect(review, operations) { if (review) server = db.syncDao().records(account.uid) }
     Column {
-        Text(if (operations.isEmpty()) "Saved on this device. Cloud record sync is not connected yet."
+        Text(if (operations.isEmpty()) "Category changes are queued automatically. Expenses and goals are saved on this device."
             else "Saved locally: ${operations.size} pending; ${issues.size} need review.")
         Row {
             TextButton(onClick = { SyncWork.scheduleRetry(context, account) }) { Text("Refresh") }
@@ -51,6 +54,7 @@ internal fun SyncStatus(account: SyncAccount) {
             }
         }
     }
+    work.lastOrNull()?.outputData?.getString("message")?.let { Text(it) }
     message?.let { Text(it) }
     if (review) AlertDialog(onDismissRequest = { review = false }, title = { Text("Saved sync issues") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -60,6 +64,15 @@ internal fun SyncStatus(account: SyncAccount) {
                 Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
                 if (issue.state == "CONFLICT") {
                     Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
+                    if (remote != null && issue.recordType == "categories") TextButton(onClick = { scope.launch {
+                        try {
+                            PocketQuestSync.get(context).resolveConflict(account, "categories", issue.recordId, false, remote.revision) {
+                                CategorySyncs.get(context).applyServer(it)
+                            }
+                            review = false
+                        } catch (cancelled: CancellationException) { throw cancelled
+                        } catch (_: Exception) { message = "The record changed. Review it again before retrying." }
+                    } }) { Text("Use reviewed server category") }
                     if (remote != null && !remote.isDeleted) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, true, remote.revision) {}

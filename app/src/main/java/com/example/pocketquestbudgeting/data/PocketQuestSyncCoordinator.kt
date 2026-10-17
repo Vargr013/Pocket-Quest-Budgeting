@@ -27,6 +27,14 @@ class PocketQuestSyncCoordinator(
         check(isCurrent(account)) { "Please log in again." }
     }
 
+    internal fun isAttached(account: SyncAccount) = isCurrent(account)
+    internal suspend fun checkOwner(account: SyncAccount) = requireOwner(account)
+    internal suspend fun writeForOwner(account: SyncAccount, write: suspend () -> Unit) = db.withTransaction {
+        requireOwner(account)
+        write()
+        requireOwner(account)
+    }
+
     suspend fun saveLocalAndEnqueue(
         account: SyncAccount, type: String, recordId: String,
         fields: Map<String, Any?>, deleted: Boolean = false,
@@ -41,7 +49,12 @@ class PocketQuestSyncCoordinator(
             val record = dao.record(account.uid, type, recordId)
                 ?: SyncRecord(account.uid, account.localUserId, type, recordId)
             check(!record.isDeleted) { "This record was deleted. Review the server version." }
-            val pending = dao.forRecord(account.uid, type, recordId)
+            var pending = dao.forRecord(account.uid, type, recordId)
+            // I replaced only a definitively rejected name; an uncertain upload still keeps its original snapshot.
+            if (type == "categories" && pending.firstOrNull()?.lastError == CATEGORY_NAME_TAKEN) {
+                dao.removeForReview(account.uid, type, recordId)
+                pending = emptyList()
+            }
             check(pending.none { it.state == "CONFLICT" || it.isDeleted }) { "Review this record before editing again." }
             val base = if (pending.isEmpty()) record.revision else null
             check(base != Long.MAX_VALUE) { "Revision limit reached." }
@@ -177,5 +190,8 @@ internal fun failureMessage(error: Exception): String = when {
     error is FirebaseAuthException -> "Session unavailable. Log in again, then retry."
     error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED -> "Session expired. Log in again, then retry."
     error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED -> "Sync denied. Check account access and rules, then retry."
+    error is CategoryNameTaken -> CATEGORY_NAME_TAKEN
     else -> "Sync data could not be accepted. Review the saved operation and cloud schema before retrying."
 }
+
+internal const val CATEGORY_NAME_TAKEN = "Another device already uses this category name. Rename this category, then retry."

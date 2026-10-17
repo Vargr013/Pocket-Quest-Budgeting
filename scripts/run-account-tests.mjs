@@ -29,9 +29,13 @@ if (!avd.startsWith('PocketQuest_Account_Tests')) throw new Error('Refused a per
 // I left APKs installed too, so the runner cannot clear a previously installed test database.
 const args = [':app:connectedDebugAndroidTest', `-Pandroid.injected.device.serial=${serial}`,
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true', '--console=plain'];
+if (process.env.POCKET_CATEGORY_TESTS === '1') {
+  if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Category tests require Firestore.');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.CategorySyncTest,com.example.pocketquestbudgeting.data.CategoryMigrationTest');
+}
 // Firestore integration cases need both local emulators; the older Auth-only command excludes them.
 if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest');
 }
 const result = process.platform === 'win32'
   ? spawnSync('cmd.exe', ['/d', '/c', 'gradlew.bat', ...args], { stdio: 'inherit' })

@@ -76,5 +76,13 @@ object DatabaseMigrations {
             db.execSQL("CREATE INDEX index_sync_queue_uid_recordType_recordId ON sync_queue(uid, recordType, recordId)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6)
+    val FROM_6_TO_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I kept the numeric IDs and expense references during the mapping upgrade (Google, 2026u).
+            db.execSQL("ALTER TABLE categories ADD COLUMN cloudId TEXT")
+            db.execSQL("ALTER TABLE categories ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("CREATE UNIQUE INDEX index_categories_userId_cloudId ON categories(userId, cloudId)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7)
 }

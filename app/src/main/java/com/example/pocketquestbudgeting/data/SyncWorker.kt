@@ -62,8 +62,9 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
             val result = coordinator.retryPending(account)
             if (result == SyncRun.DETACHED) return Result.success()
             if (result == SyncRun.RETRY) return Result.retry()
-            // No financial collections are read until a later slice creates their mappings.
-            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct()
+            val categoryCloud = FirestoreSyncCloud(FirebaseFirestore.getInstance())
+            CategorySyncs.get(applicationContext).refresh(account, categoryCloud)
+            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" }
             for (type in types) {
                 if (!session.isCurrent(account)) return Result.success()
                 coordinator.refreshFromServer(account, type)

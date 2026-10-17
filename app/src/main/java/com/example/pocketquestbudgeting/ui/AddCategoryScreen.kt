@@ -45,7 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pocketquestbudgeting.data.DatabaseProvider
+import com.example.pocketquestbudgeting.data.CategorySyncs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -173,9 +173,9 @@ fun AddCategoryScreen(userId: Long, onBack: () -> Unit = {}) {
                         error = null
                         scope.launch {
                             try {
-                                val db = DatabaseProvider.get(context)
+                                val categories = CategorySyncs.get(context)
                                 val id = userId
-                                if (db.categoryDao().create(id, name, minCents, maxCents) == null) {
+                                if (categories.create(CategorySyncs.account(context, id), name, minCents, maxCents) == null) {
                                     error = "You already have a category with that name."
                                 } else {
                                     onBack()

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.data.CategoryChangeResult
 import com.example.pocketquestbudgeting.data.CategoryEntity
+import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -88,9 +89,12 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
         loading = true
         try {
             val id = userId
-            categories = db.categoryDao().getForUser(id)
-            if (categories.none { it.id == selectedId }) selectedId = null
-            error = null
+            db.categoryDao().observeForUser(id).collect { saved ->
+                categories = saved
+                if (categories.none { it.id == selectedId }) selectedId = null
+                error = null
+                loading = false
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -110,7 +114,7 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
         scope.launch {
             try {
                 val result = when (currentAction) {
-                    CategoryAction.RENAME -> db.categoryDao().rename(id, category.id, categoryName)
+                    CategoryAction.RENAME -> CategorySyncs.get(context).rename(CategorySyncs.account(context, id), category.id, categoryName)
                     CategoryAction.SET_BUDGETS -> {
                         val minCents = parseBudgetCents(minBudget)
                             ?: throw IllegalArgumentException(
@@ -120,9 +124,9 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                             ?: throw IllegalArgumentException(
                                 "Enter a maximum monthly budget using a dot and up to 2 decimal places.",
                             )
-                        db.categoryDao().setBudgets(id, category.id, minCents, maxCents)
+                        CategorySyncs.get(context).setBudgets(CategorySyncs.account(context, id), category.id, minCents, maxCents)
                     }
-                    CategoryAction.DELETE -> db.categoryDao().delete(id, category.id)
+                    CategoryAction.DELETE -> CategorySyncs.get(context).archive(CategorySyncs.account(context, id), category.id)
                 }
                 when (result) {
                     CategoryChangeResult.SUCCESS -> {
@@ -135,7 +139,7 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                         error = "This category is no longer available. Please retry the list."
                     }
                     CategoryChangeResult.IN_USE ->
-                        error = "This category has expenses. Move or delete those expenses before deleting it."
+                        error = "This category is no longer available. Refresh the list."
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -340,7 +344,7 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                     when (currentAction) {
                         CategoryAction.RENAME -> "Rename category"
                         CategoryAction.SET_BUDGETS -> "Set monthly budgets"
-                        else -> "Delete category?"
+                        else -> "Remove category?"
                     },
                     color = TextPrimary,
                 )
@@ -379,7 +383,7 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                             )
                         }
                         else -> Text(
-                            "Delete \"${selected.name}\"? This cannot be undone.",
+                            "Remove \"${selected.name}\"? Its history will stay saved.",
                             color = TextPrimary,
                         )
                     }
@@ -393,7 +397,7 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                     Text(
                         when {
                             saving -> "Saving..."
-                            currentAction == CategoryAction.DELETE -> "Delete"
+                            currentAction == CategoryAction.DELETE -> "Remove"
                             else -> "Save"
                         },
                         color = if (currentAction == CategoryAction.DELETE) RemoveOrange else Teal,

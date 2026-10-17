@@ -52,7 +52,7 @@ class AccountMigrationTest {
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
             val migrated = db.openHelper.writableDatabase
-            assertEquals(6, migrated.version)
+            assertEquals(7, migrated.version)
             migrated.query("PRAGMA table_info(users)").use { columns ->
                 val names = mutableListOf<String>()
                 while (columns.moveToNext()) names += columns.getString(1)
