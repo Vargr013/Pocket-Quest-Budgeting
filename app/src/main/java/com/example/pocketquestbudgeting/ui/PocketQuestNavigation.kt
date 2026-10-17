@@ -39,6 +39,7 @@ internal fun AccountContent(session: AccountSession, modifier: Modifier = Modifi
         } else {
             Column(modifier) {
                 if (state.offline) Text("Offline: showing this account's saved local data.")
+                SyncStatus(account)
                 AccountNavigation(account.localUserId, onLogout = { session.logout() }, modifier = Modifier.weight(1f))
             }
         }

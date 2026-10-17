@@ -34,6 +34,8 @@ class AccountSession(
     private val auth: CloudAuth,
     private val store: SessionStore,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    private val onOpened: (SyncAccount) -> Unit = {},
+    private val onClosed: (SyncAccount) -> Unit = {},
 ) {
     private val mutableState = MutableStateFlow(AccountState())
     val state = mutableState.asStateFlow()
@@ -150,6 +152,7 @@ class AccountSession(
         accountWork?.cancel()
         accountWork = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         mutableState.value = AccountState(checked = true, account = SyncAccount(id, identity.uid, request), offline = offline)
+        onOpened(requireNotNull(mutableState.value.account))
     }
 
     private fun request(action: suspend (Long) -> Unit): Job {
@@ -195,10 +198,12 @@ class AccountSession(
     }
 
     fun logout(message: String? = null) {
+        val previous = state.value.account
         generation++
         accountWork?.cancel()
         accountWork = null
         mutableState.value = AccountState(checked = true, message = message)
+        previous?.let(onClosed)
         store.clear()
         auth.signOut()
     }
@@ -214,6 +219,8 @@ object AccountSessions {
             DatabaseProvider.get(context.applicationContext),
             FirebaseCloudAuth(FirebaseAuth.getInstance()),
             LocalSessionStore(context.applicationContext),
+            onOpened = { SyncWork.onSignedIn(context.applicationContext, it) },
+            onClosed = { SyncWork.onSignedOut(context.applicationContext, it) },
         ).also { instance = it }
     }
 }

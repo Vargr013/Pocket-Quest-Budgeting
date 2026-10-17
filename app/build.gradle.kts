@@ -66,6 +66,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
+    // I added the 2.10 network-constraint fixes without upgrading existing dependencies (Google, 2026an).
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")

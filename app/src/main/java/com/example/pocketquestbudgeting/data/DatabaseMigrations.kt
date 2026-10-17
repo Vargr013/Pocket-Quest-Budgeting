@@ -58,5 +58,23 @@ object DatabaseMigrations {
             db.execSQL("CREATE UNIQUE INDEX index_users_firebaseUid ON users(firebaseUid)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5)
+    val FROM_5_TO_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I added separate sync tables without rewriting financial rows (Google, 2026u).
+            db.execSQL("""CREATE TABLE IF NOT EXISTS sync_records (
+                uid TEXT NOT NULL, userId INTEGER NOT NULL, recordType TEXT NOT NULL, recordId TEXT NOT NULL,
+                revision INTEGER NOT NULL, payload TEXT NOT NULL, isDeleted INTEGER NOT NULL,
+                updatedAtMillis INTEGER, deletedAtMillis INTEGER, lastMutationId TEXT,
+                PRIMARY KEY(uid, recordType, recordId))""")
+            db.execSQL("CREATE INDEX index_sync_records_userId ON sync_records(userId)")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS sync_queue (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, mutationId TEXT NOT NULL,
+                uid TEXT NOT NULL, userId INTEGER NOT NULL, recordType TEXT NOT NULL, recordId TEXT NOT NULL,
+                payload TEXT NOT NULL, isDeleted INTEGER NOT NULL, baseRevision INTEGER, state TEXT NOT NULL,
+                attemptCount INTEGER NOT NULL, lastError TEXT)""")
+            db.execSQL("CREATE UNIQUE INDEX index_sync_queue_mutationId ON sync_queue(mutationId)")
+            db.execSQL("CREATE INDEX index_sync_queue_uid_recordType_recordId ON sync_queue(uid, recordType, recordId)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6)
 }

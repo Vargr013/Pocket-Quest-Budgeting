@@ -29,6 +29,10 @@ if (!avd.startsWith('PocketQuest_Account_Tests')) throw new Error('Refused a per
 // I left APKs installed too, so the runner cannot clear a previously installed test database.
 const args = [':app:connectedDebugAndroidTest', `-Pandroid.injected.device.serial=${serial}`,
   '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true', '--console=plain'];
+// Firestore integration cases need both local emulators; the older Auth-only command excludes them.
+if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') {
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest');
+}
 const result = process.platform === 'win32'
   ? spawnSync('cmd.exe', ['/d', '/c', 'gradlew.bat', ...args], { stdio: 'inherit' })
   : spawnSync('./gradlew', args, { stdio: 'inherit' });
