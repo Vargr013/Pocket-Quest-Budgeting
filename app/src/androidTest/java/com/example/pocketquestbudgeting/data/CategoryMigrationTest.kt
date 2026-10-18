@@ -38,7 +38,7 @@ class CategoryMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(7, db.openHelper.writableDatabase.version)
+            assertEquals(8, db.openHelper.writableDatabase.version)
             val category = requireNotNull(db.categoryDao().getForUserById(41, 61))
             assertNull(category.cloudId); assertFalse(category.isArchived)
             assertEquals(9007199254740993L, category.maxMonthlyBudget)

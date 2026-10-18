@@ -10,6 +10,9 @@ interface UserDao {
     @Query("UPDATE users SET categoriesInitialized = 1 WHERE id = :userId")
     suspend fun markCategoriesInitialized(userId: Long)
 
+    @Query("UPDATE users SET importPending = 0 WHERE id = :userId AND firebaseUid = :uid AND importPending = 1")
+    suspend fun finishRecordImport(userId: Long, uid: String)
+
     @Insert
     suspend fun insert(user: UserEntity): Long
 

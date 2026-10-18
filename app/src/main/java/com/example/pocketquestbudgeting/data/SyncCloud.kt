@@ -34,7 +34,7 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
         val acknowledgement = owner.collection("mutations").document(operation.mutationId)
         val namesRef = owner.collection("categoryNames").document("index")
         // I checked the revision and wrote the retained receipt in one transaction (Google, 2026x).
-        return firestore.runTransaction { transaction ->
+        return try { firestore.runTransaction { transaction ->
             check(stillCurrent()) { "Session changed." }
             val receipt = transaction.get(acknowledgement)
             val current = transaction.get(record)
@@ -49,6 +49,14 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                 if ((remote?.revision ?: 0) != base || remote?.isDeleted == true) {
                     SendResult.Conflict(remote)
                 } else {
+                    if (operation.recordType == "expenses") {
+                        // I checked the category inside the expense transaction so an archive could not race a new assignment (Google, 2026x).
+                        val category = transaction.get(owner.collection("categories").document(fields["categoryId"] as String))
+                        val retained = current.exists() && current.getString("categoryId") == fields["categoryId"]
+                        if (!category.exists() || (category.getBoolean("isDeleted") == true && !operation.isDeleted && !retained)) {
+                            throw ExpenseCategoryUnavailable()
+                        }
+                    }
                     check(stillCurrent()) { "Session changed." }
                     val data = fields + mapOf(
                         "schemaVersion" to 1L, "revision" to base + 1, "lastMutationId" to operation.mutationId,
@@ -74,6 +82,32 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                 }
             }
         }.awaitSync()
+        } catch (error: com.google.firebase.firestore.FirebaseFirestoreException) {
+            if (error.code != com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) throw error
+            check(stillCurrent()) { "Session changed." }
+            // I distinguished a raced revision from a schema/access failure using server reads (Google, 2026x).
+            val receipt = acknowledgement.get(Source.SERVER).awaitSync()
+            if (receipt.exists() && receipt.getString("fingerprint") == fingerprint && receipt.getLong("revision") == base + 1) {
+                check(stillCurrent()) { "Session changed." }
+                SendResult.Accepted(base + 1)
+            } else {
+                val current = record.get(Source.SERVER).awaitSync()
+                check(stillCurrent()) { "Session changed." }
+                val remote = if (current.exists()) current.toSyncRecord(operation.uid, operation.userId, operation.recordType) else null
+                if (remote != null && (remote.revision != base || remote.isDeleted)) SendResult.Conflict(remote)
+                else {
+                    if (operation.recordType == "expenses") {
+                        val category = owner.collection("categories").document(fields["categoryId"] as String).get(Source.SERVER).awaitSync()
+                        check(stillCurrent()) { "Session changed." }
+                        val retained = current.exists() && current.getString("categoryId") == fields["categoryId"]
+                        if (!category.exists() || (category.getBoolean("isDeleted") == true && !operation.isDeleted && !retained)) {
+                            throw ExpenseCategoryUnavailable()
+                        }
+                    }
+                    throw error
+                }
+            }
+        }
     }
 
     suspend fun initializeCategories(account: SyncAccount, username: String, localEmpty: Boolean, stillCurrent: () -> Boolean) {
@@ -170,3 +204,5 @@ internal val defaultCategories = linkedMapOf(
 
 // I prefixed the lowercase key so display names could keep reserved punctuation (Google, 2020).
 internal fun categoryNameKey(name: String) = "n:" + name.lowercase(Locale.ROOT)
+
+internal class ExpenseCategoryUnavailable : IllegalStateException("Expense needs an active category.")

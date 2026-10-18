@@ -69,6 +69,17 @@ class CategorySync(private val db: AppDatabase, private val sync: PocketQuestSyn
         it.id != draft.id && it.name.trim().equals(draft.name, ignoreCase = true)
     }
 
+    suspend fun ensureMapped(account: SyncAccount, id: Long): CategoryEntity = db.withTransaction {
+        sync.checkOwner(account)
+        val old = requireNotNull(db.categoryDao().getForUserById(account.localUserId, id)) { "Category unavailable." }
+        if (old.cloudId != null && db.syncDao().record(account.uid, "categories", old.cloudId) != null) return@withTransaction old
+        val mapped = old.copy(cloudId = old.cloudId ?: UUID.randomUUID().toString())
+        sync.saveLocalAndEnqueue(account, "categories", requireNotNull(mapped.cloudId), CategoryMapping.fields(mapped), mapped.isArchived) {
+            check(db.categoryDao().updateSynced(mapped) == 1)
+        }
+        mapped
+    }
+
     suspend fun applyServer(record: SyncRecord) {
         val old = categories.getByCloudId(record.userId, record.recordId)
         val downloaded = CategoryMapping.read(record, old?.id ?: 0)

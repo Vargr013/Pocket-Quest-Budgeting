@@ -6,6 +6,7 @@ service cloud.firestore {
     function nameKey(name) { return 'n:' + name.lower(); }
     function stableId(id) { return id.matches('[A-Za-z0-9_-]{1,80}'); }
     function mutationId(id) { return id.matches('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'); }
+    function recordPath(uid, type, id) { return /databases/$(database)/documents/users/$(uid)/$(type)/$(id); }
     function categoryPath(uid, id) { return /databases/$(database)/documents/users/$(uid)/categories/$(id); }
     function receiptPath(uid, id) { return /databases/$(database)/documents/users/$(uid)/mutations/$(id); }
     function indexPath(uid) { return /databases/$(database)/documents/users/$(uid)/categoryNames/index; }
@@ -28,11 +29,11 @@ service cloud.firestore {
         && data.isDeleted is bool
         && (data.isDeleted ? data.deletedAt == request.time : data.deletedAt == null);
     }
-    function matchingReceipt(uid, id, data, base) {
+    function matchingReceipt(uid, id, data, base, type) {
       let path = receiptPath(uid, data.lastMutationId);
       let receipt = getAfter(path).data;
       // I required a new receipt in the same atomic write (Google, 2026z).
-      return !exists(path) && receipt.recordType == 'categories' && receipt.recordId == id
+      return !exists(path) && receipt.recordType == type && receipt.recordId == id
         && receipt.baseRevision == base && receipt.revision == data.revision;
     }
     function matchingIndex(uid, id, data) {
@@ -69,15 +70,63 @@ service cloud.firestore {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && stableId(id) && validCategory(request.resource.data)
         && request.resource.data.revision == 1
-        && matchingReceipt(uid, id, request.resource.data, 0)
+        && matchingReceipt(uid, id, request.resource.data, 0, 'categories')
         && (matchingIndex(uid, id, request.resource.data) || defaultIndex(uid, id, request.resource.data));
       allow update: if isOwner(uid) && validCategory(request.resource.data) && !resource.data.isDeleted
         && request.resource.data.revision == resource.data.revision + 1
         && (!request.resource.data.isDeleted || (request.resource.data.name == resource.data.name
           && request.resource.data.minimumCents == resource.data.minimumCents
           && request.resource.data.maximumCents == resource.data.maximumCents))
-        && matchingReceipt(uid, id, request.resource.data, resource.data.revision)
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'categories')
         && matchingIndex(uid, id, request.resource.data);
+      allow delete: if false;
+    }
+    function validExpenseDate(date) {
+      let year = int(date[0:4]);
+      let month = int(date[5:7]);
+      let day = int(date[8:10]);
+      let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+      let days = month == 2 ? (leap ? 29 : 28) : (month in [4, 6, 9, 11] ? 30 : 31);
+      return date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}') && year > 0
+        && month >= 1 && month <= 12 && day >= 1 && day <= days;
+    }
+    function validExpense(data) {
+      // I kept expense fields explicit and rejected local photo paths (Google, 2026p).
+      return data.keys().hasAll(['categoryId', 'amountCents', 'date', 'startTime', 'endTime', 'description', 'receiptObjectPath',
+          'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['categoryId', 'amountCents', 'date', 'startTime', 'endTime', 'description', 'receiptObjectPath',
+          'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.categoryId is string && stableId(data.categoryId)
+        && data.amountCents is int && data.amountCents > 0
+        && data.date is string && validExpenseDate(data.date)
+        && data.startTime is string && data.startTime.matches('([01][0-9]|2[0-3]):[0-5][0-9]')
+        && data.endTime is string && data.endTime.matches('([01][0-9]|2[0-3]):[0-5][0-9]')
+        && data.endTime >= data.startTime
+        && data.description is string && data.description.size() > 0 && data.description.trim() == data.description
+        && (data.receiptObjectPath == null || data.receiptObjectPath is string)
+        && data.schemaVersion is int && data.schemaVersion == 1 && data.revision is int && data.revision > 0
+        && mutationId(data.lastMutationId) && data.updatedAt == request.time && data.isDeleted is bool
+        && (data.isDeleted ? data.deletedAt == request.time : data.deletedAt == null);
+    }
+    function allowedExpenseCategory(uid, id, data) {
+      let category = getAfter(categoryPath(uid, data.categoryId)).data;
+      // I checked the final category state so one batch could not archive it and add a new expense (Google, 2026z).
+      return category.isDeleted == false || data.isDeleted
+        || (exists(recordPath(uid, 'expenses', id)) && get(recordPath(uid, 'expenses', id)).data.categoryId == data.categoryId);
+    }
+    match /users/{uid}/expenses/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && stableId(id) && validExpense(request.resource.data)
+        && request.resource.data.revision == 1 && request.resource.data.receiptObjectPath == null
+        && allowedExpenseCategory(uid, id, request.resource.data)
+        && matchingReceipt(uid, id, request.resource.data, 0, 'expenses');
+      allow update: if isOwner(uid) && validExpense(request.resource.data) && !resource.data.isDeleted
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.receiptObjectPath == resource.data.receiptObjectPath
+        && (!request.resource.data.isDeleted || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt']))
+        && allowedExpenseCategory(uid, id, request.resource.data)
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'expenses');
       allow delete: if false;
     }
     match /users/{uid}/mutations/{id} {
@@ -85,14 +134,14 @@ service cloud.firestore {
       allow create: if isOwner(uid) && mutationId(id)
         && request.resource.data.keys().hasAll(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
         && request.resource.data.keys().hasOnly(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
-        && request.resource.data.recordType == 'categories' && stableId(request.resource.data.recordId)
+        && request.resource.data.recordType in ['categories', 'expenses'] && stableId(request.resource.data.recordId)
         && request.resource.data.baseRevision is int && request.resource.data.baseRevision >= 0
         && request.resource.data.revision is int && request.resource.data.revision == request.resource.data.baseRevision + 1
         && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('[a-f0-9]{64}')
-        && getAfter(categoryPath(uid, request.resource.data.recordId)).data.lastMutationId == id
-        && getAfter(categoryPath(uid, request.resource.data.recordId)).data.revision == request.resource.data.revision
-        && (exists(categoryPath(uid, request.resource.data.recordId))
-          ? get(categoryPath(uid, request.resource.data.recordId)).data.revision == request.resource.data.baseRevision
+        && getAfter(recordPath(uid, request.resource.data.recordType, request.resource.data.recordId)).data.lastMutationId == id
+        && getAfter(recordPath(uid, request.resource.data.recordType, request.resource.data.recordId)).data.revision == request.resource.data.revision
+        && (exists(recordPath(uid, request.resource.data.recordType, request.resource.data.recordId))
+          ? get(recordPath(uid, request.resource.data.recordType, request.resource.data.recordId)).data.revision == request.resource.data.baseRevision
           : request.resource.data.baseRevision == 0);
       allow update, delete: if false;
     }

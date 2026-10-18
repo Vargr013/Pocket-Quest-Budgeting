@@ -35,8 +35,8 @@ interface SyncDao {
     @Query("UPDATE sync_queue SET state = :state, lastError = :message, attemptCount = attemptCount + 1 WHERE uid = :uid AND mutationId = :mutationId")
     suspend fun mark(uid: String, mutationId: String, state: String, message: String?)
 
-    @Query("UPDATE sync_queue SET state = 'PENDING', lastError = NULL WHERE uid = :uid AND state = 'FAILED' AND (lastError IS NULL OR lastError != :nameTaken)")
-    suspend fun retryFailures(uid: String, nameTaken: String = CATEGORY_NAME_TAKEN)
+    @Query("UPDATE sync_queue SET state = 'PENDING', lastError = NULL WHERE uid = :uid AND state = 'FAILED' AND (lastError IS NULL OR (lastError != :nameTaken AND lastError != :categoryUnavailable))")
+    suspend fun retryFailures(uid: String, nameTaken: String = CATEGORY_NAME_TAKEN, categoryUnavailable: String = EXPENSE_CATEGORY_UNAVAILABLE)
 
     @Query("DELETE FROM sync_queue WHERE uid = :uid AND recordType = :type AND recordId = :id")
     suspend fun removeForReview(uid: String, type: String, id: String)

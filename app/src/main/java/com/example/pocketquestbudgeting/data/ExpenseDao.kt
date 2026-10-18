@@ -10,16 +10,16 @@ interface ExpenseDao {
     @Insert
     suspend fun insert(expense: ExpenseEntity): Long
 
-    @Query("SELECT * FROM expenses WHERE userId = :userId ORDER BY date DESC, startTime DESC, id DESC")
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 ORDER BY date DESC, startTime DESC, id DESC")
     suspend fun getForUser(userId: Long): List<ExpenseEntity>
 
-    @Query("SELECT * FROM expenses WHERE userId = :userId AND date >= :startDate AND date <= :endDate ORDER BY date DESC, startTime DESC, id DESC")
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 AND date >= :startDate AND date <= :endDate ORDER BY date DESC, startTime DESC, id DESC")
     suspend fun getForUserInRange(userId: Long, startDate: String, endDate: String): List<ExpenseEntity>
 
     // I used instr so punctuation and spaces stay literal; lower handles ASCII capitals.
     @Query("""
         SELECT * FROM expenses
-        WHERE userId = :userId
+        WHERE userId = :userId AND isDeleted = 0
         AND (:startDate IS NULL OR date >= :startDate)
         AND (:endDate IS NULL OR date <= :endDate)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
@@ -34,32 +34,35 @@ interface ExpenseDao {
         search: String,
     ): List<ExpenseEntity>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM expenses WHERE userId = :userId)")
+    @Query("SELECT EXISTS(SELECT 1 FROM expenses WHERE userId = :userId AND isDeleted = 0)")
     suspend fun hasForUser(userId: Long): Boolean
 
-    @Query("SELECT * FROM expenses WHERE id = :expenseId AND userId = :userId")
+    @Query("SELECT * FROM expenses WHERE id = :expenseId AND userId = :userId AND isDeleted = 0")
     suspend fun getForUserById(userId: Long, expenseId: Long): ExpenseEntity?
 
-    // I scoped deletion itself so another user's expense stays safe.
-    @Query("DELETE FROM expenses WHERE id = :expenseId AND userId = :userId")
-    suspend fun deleteForUser(userId: Long, expenseId: Long): Int
+    @Query("SELECT * FROM expenses WHERE userId = :userId ORDER BY id")
+    suspend fun getAllForUser(userId: Long): List<ExpenseEntity>
 
-    // I checked both IDs so this cannot update another user's expense.
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND id = :id")
+    suspend fun getIncludingDeleted(userId: Long, id: Long): ExpenseEntity?
+
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND cloudId = :cloudId")
+    suspend fun getByCloudId(userId: Long, cloudId: String): ExpenseEntity?
+
+    suspend fun updateSynced(expense: ExpenseEntity): Int = updateForSync(
+        expense.userId, expense.id, expense.categoryId, expense.amount, expense.date,
+        expense.startTime, expense.endTime, expense.description, expense.receiptImageUri,
+        expense.cloudId, expense.isDeleted, expense.receiptObjectPath,
+    )
+
     @Query("""
         UPDATE expenses SET categoryId = :categoryId, amount = :amount, date = :date,
             startTime = :startTime, endTime = :endTime, description = :description,
-            receiptImageUri = :receiptImageUri
-        WHERE id = :expenseId AND userId = :userId
+            receiptImageUri = :receiptImageUri, cloudId = :cloudId,
+            isDeleted = :deleted, receiptObjectPath = :receiptObjectPath
+        WHERE id = :id AND userId = :userId
     """)
-    suspend fun updateForUser(
-        userId: Long,
-        expenseId: Long,
-        categoryId: Long,
-        amount: Long,
-        date: String,
-        startTime: String,
-        endTime: String,
-        description: String,
-        receiptImageUri: String?,
-    ): Int
+    suspend fun updateForSync(userId: Long, id: Long, categoryId: Long, amount: Long,
+        date: String, startTime: String, endTime: String, description: String,
+        receiptImageUri: String?, cloudId: String?, deleted: Boolean, receiptObjectPath: String?): Int
 }

@@ -84,5 +84,14 @@ object DatabaseMigrations {
             db.execSQL("CREATE UNIQUE INDEX index_categories_userId_cloudId ON categories(userId, cloudId)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7)
+    val FROM_7_TO_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I kept existing expense IDs and local photos while adding the cloud mapping (Google, 2026u).
+            db.execSQL("ALTER TABLE expenses ADD COLUMN cloudId TEXT")
+            db.execSQL("ALTER TABLE expenses ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE expenses ADD COLUMN receiptObjectPath TEXT")
+            db.execSQL("CREATE UNIQUE INDEX index_expenses_userId_cloudId ON expenses(userId, cloudId)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8)
 }

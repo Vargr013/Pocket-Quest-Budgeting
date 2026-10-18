@@ -1,7 +1,8 @@
 package com.example.pocketquestbudgeting.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.room.withTransaction
+import com.example.pocketquestbudgeting.data.CategorySyncs
+import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,12 +62,15 @@ fun ExpenseDetailsScreen(userId: Long, expenseId: Long?, onBack: () -> Unit, onE
             if (expenseId != null && expenseId > 0) {
                 val db = DatabaseProvider.get(context)
 
-                // I loaded by both IDs so another user's expense cannot open here.
-                val loaded = db.expenseDao().getForUserById(userId, expenseId)
-                categoryName = loaded?.let {
-                    db.categoryDao().getForUserById(userId, it.categoryId)?.name
-                } ?: "Category unavailable"
-                expense = loaded
+                db.invalidationTracker.createFlow("expenses", "categories").collect {
+                    // I loaded by both IDs so another user's expense cannot open here.
+                    val loaded = db.expenseDao().getForUserById(userId, expenseId)
+                    categoryName = loaded?.let {
+                        db.categoryDao().getForUserById(userId, it.categoryId)?.name
+                    } ?: "Category unavailable"
+                    expense = loaded
+                    loading = false
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -140,13 +144,9 @@ fun ExpenseDetailsScreen(userId: Long, expenseId: Long?, onBack: () -> Unit, onE
                         deleteError = null
                         scope.launch {
                             val deleted = try {
-                                val db = DatabaseProvider.get(context)
-                                db.withTransaction {
-                                    // I used the signed-in account and checked the deleted row count.
-                                    val count = db.expenseDao().deleteForUser(userId, target.id)
-                                    check(count in 0..1)
-                                    count == 1
-                                }
+                                val count = ExpenseSyncs.get(context).delete(CategorySyncs.account(context, userId), target.id)
+                                check(count in 0..1)
+                                count == 1
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
                             } catch (_: Exception) {

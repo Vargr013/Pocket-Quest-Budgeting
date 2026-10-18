@@ -13,7 +13,7 @@ interface CategoryDao {
         SELECT c.id AS categoryId, c.name AS categoryName,
             COALESCE(SUM(e.amount), 0) AS totalCents
         FROM categories AS c
-        LEFT JOIN expenses AS e ON e.categoryId = c.id AND e.userId = :userId
+        LEFT JOIN expenses AS e ON e.categoryId = c.id AND e.userId = :userId AND e.isDeleted = 0
             AND (:startDate IS NULL OR e.date >= :startDate)
             AND (:endDate IS NULL OR e.date <= :endDate)
         WHERE c.userId = :userId
@@ -53,6 +53,7 @@ interface CategoryDao {
         LEFT JOIN expenses AS e
             ON e.categoryId = c.id
            AND e.userId = c.userId
+           AND e.isDeleted = 0
            AND e.date >= :monthStart
            AND e.date < :monthEnd
         WHERE c.userId = :userId AND c.isArchived = 0

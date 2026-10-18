@@ -50,8 +50,9 @@ class PocketQuestSyncCoordinator(
                 ?: SyncRecord(account.uid, account.localUserId, type, recordId)
             check(!record.isDeleted) { "This record was deleted. Review the server version." }
             var pending = dao.forRecord(account.uid, type, recordId)
-            // I replaced only a definitively rejected name; an uncertain upload still keeps its original snapshot.
-            if (type == "categories" && pending.firstOrNull()?.lastError == CATEGORY_NAME_TAKEN) {
+            // I replaced only a definite rejection; uncertain uploads kept their original snapshot.
+            if ((type == "categories" && pending.firstOrNull()?.lastError == CATEGORY_NAME_TAKEN)
+                || (type == "expenses" && pending.firstOrNull()?.lastError == EXPENSE_CATEGORY_UNAVAILABLE)) {
                 dao.removeForReview(account.uid, type, recordId)
                 pending = emptyList()
             }
@@ -71,7 +72,7 @@ class PocketQuestSyncCoordinator(
 
     suspend fun retryPending(account: SyncAccount): SyncRun = runLock.withLock {
         if (!isCurrent(account)) return@withLock SyncRun.DETACHED
-        val heads = dao.pending(account.uid).groupBy { it.recordType to it.recordId }.values.map { it.first() }
+        val heads = dao.pending(account.uid).groupBy { it.recordType to it.recordId }.values.map { it.first() }.sortedBy { if (it.recordType == "categories") 0 else 1 }
         var retry = false
         for (head in heads) {
             var operation: SyncOperation? = head
@@ -81,6 +82,15 @@ class PocketQuestSyncCoordinator(
                 try {
                     requireOwner(account)
                     check(sent.userId == account.localUserId && sent.baseRevision != null)
+                    if (sent.recordType == "expenses") {
+                        val categoryId = SyncMapping.decode("expenses", sent.payload)["categoryId"] as String
+                        val dependency = dao.record(account.uid, "categories", categoryId)
+                        val pendingCategory = dao.forRecord(account.uid, "categories", categoryId)
+                        if (dependency == null || dependency.revision == 0L || pendingCategory.isNotEmpty()) {
+                            retry = retry || pendingCategory.any { it.state == "PENDING" }
+                            break
+                        }
+                    }
                     when (val result = cloud.send(sent) { isCurrent(account) }) {
                         is SendResult.Accepted -> acknowledge(account, sent, result.revision)
                         is SendResult.Conflict -> db.withTransaction {
@@ -191,7 +201,10 @@ internal fun failureMessage(error: Exception): String = when {
     error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.UNAUTHENTICATED -> "Session expired. Log in again, then retry."
     error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED -> "Sync denied. Check account access and rules, then retry."
     error is CategoryNameTaken -> CATEGORY_NAME_TAKEN
+    error is ExpenseCategoryUnavailable -> EXPENSE_CATEGORY_UNAVAILABLE
     else -> "Sync data could not be accepted. Review the saved operation and cloud schema before retrying."
 }
 
 internal const val CATEGORY_NAME_TAKEN = "Another device already uses this category name. Rename this category, then retry."
+
+internal const val EXPENSE_CATEGORY_UNAVAILABLE = "This expense needs an active category. Edit it and choose a replacement; its entries and local photo are kept."

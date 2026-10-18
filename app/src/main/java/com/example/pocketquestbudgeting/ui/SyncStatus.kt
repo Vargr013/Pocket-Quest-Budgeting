@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.PocketQuestSync
@@ -40,7 +41,7 @@ internal fun SyncStatus(account: SyncAccount) {
     val issues = operations.filter { it.state != "PENDING" }
     LaunchedEffect(review, operations) { if (review) server = db.syncDao().records(account.uid) }
     Column {
-        Text(if (operations.isEmpty()) "Category changes are queued automatically. Expenses and goals are saved on this device."
+        Text(if (operations.isEmpty()) "Category and expense changes are queued automatically. Goals and photos are still local."
             else "Saved locally: ${operations.size} pending; ${issues.size} need review.")
         Row {
             TextButton(onClick = { SyncWork.scheduleRetry(context, account) }) { Text("Refresh") }
@@ -64,15 +65,16 @@ internal fun SyncStatus(account: SyncAccount) {
                 Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
                 if (issue.state == "CONFLICT") {
                     Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
-                    if (remote != null && issue.recordType == "categories") TextButton(onClick = { scope.launch {
+                    if (remote != null && issue.recordType in listOf("categories", "expenses")) TextButton(onClick = { scope.launch {
                         try {
-                            PocketQuestSync.get(context).resolveConflict(account, "categories", issue.recordId, false, remote.revision) {
-                                CategorySyncs.get(context).applyServer(it)
+                            PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, false, remote.revision) {
+                                if (issue.recordType == "categories") CategorySyncs.get(context).applyServer(it)
+                                else ExpenseSyncs.get(context).applyServer(it)
                             }
                             review = false
                         } catch (cancelled: CancellationException) { throw cancelled
                         } catch (_: Exception) { message = "The record changed. Review it again before retrying." }
-                    } }) { Text("Use reviewed server category") }
+                    } }) { Text("Use reviewed server record") }
                     if (remote != null && !remote.isDeleted) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, true, remote.revision) {}

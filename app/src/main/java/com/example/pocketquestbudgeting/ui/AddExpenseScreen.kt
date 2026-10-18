@@ -1,6 +1,7 @@
 package com.example.pocketquestbudgeting.ui
 
-import androidx.room.withTransaction
+import com.example.pocketquestbudgeting.data.CategorySyncs
+import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import androidx.activity.compose.BackHandler
 import java.math.BigDecimal
 import androidx.compose.foundation.layout.imePadding
@@ -397,37 +398,11 @@ fun AddExpenseScreen(
                 saving = true
                 scope.launch {
                     try {
-                        val db = DatabaseProvider.get(context)
                         check(!editing || editUserId == userId)
-                        // I kept the category check and expense save in one transaction (Google, 2026j).
-                        val saved = db.withTransaction {
-                            val category = db.categoryDao().getForUserById(userId, categoryId)
-                            val original = expenseId?.let { db.expenseDao().getForUserById(userId, it) }
-                            // I kept old archived references, but rejected a new assignment to one.
-                            if (category == null || (category.isArchived && original?.categoryId != categoryId)) {
-                                return@withTransaction -1
-                            }
-                            if (expenseId != null) {
-                                db.expenseDao().updateForUser(
-                                    userId, expenseId, categoryId, amountCents, savedDate,
-                                    savedStart, savedEnd, savedDescription, savedReceipt,
-                                )
-                            } else {
-                                db.expenseDao().insert(
-                                    ExpenseEntity(
-                                        userId = userId,
-                                        categoryId = categoryId,
-                                        amount = amountCents,
-                                        date = savedDate,
-                                        startTime = savedStart,
-                                        endTime = savedEnd,
-                                        description = savedDescription,
-                                        receiptImageUri = savedReceipt,
-                                    ),
-                                )
-                                1
-                            }
-                        }
+                        val saved = ExpenseSyncs.get(context).save(CategorySyncs.account(context, userId),
+                            ExpenseEntity(id = expenseId ?: 0, userId = userId, categoryId = categoryId,
+                                amount = amountCents, date = savedDate, startTime = savedStart, endTime = savedEnd,
+                                description = savedDescription, receiptImageUri = savedReceipt))
                         if (saved == 1) onBack() else if (saved == 0) {
                             saveError = "Expense unavailable. No changes were saved. You can go back to Details."
                         } else {

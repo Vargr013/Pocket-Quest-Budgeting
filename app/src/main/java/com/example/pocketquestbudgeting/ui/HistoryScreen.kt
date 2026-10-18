@@ -128,34 +128,37 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
         try {
             val db = DatabaseProvider.get(context)
 
-            val (loadedExpenses, anyExpenses, loadedCategories) = db.withTransaction {
-                val dao = db.expenseDao()
-                val currentCategories = db.categoryDao().getAllForUser(userId)
-                val selectedCategory = requestedCategory?.takeIf { id -> currentCategories.any { it.id == id } }
-                val rows = dao.getForUserFiltered(
-                    userId,
-                    requestedStart.takeUnless { requestedFilter == "all" },
-                    requestedEnd.takeUnless { requestedFilter == "all" },
-                    selectedCategory,
-                    requestedSearch,
-                )
-                // I checked existence in the same read so the empty message matches the results.
-                Triple(rows, rows.isNotEmpty() || dao.hasForUser(userId), currentCategories)
+            // I observed Room so incoming expense changes refreshed the current filter (Google, 2026k).
+            db.invalidationTracker.createFlow("expenses", "categories").collect {
+                val (loadedExpenses, anyExpenses, loadedCategories) = db.withTransaction {
+                    val dao = db.expenseDao()
+                    val currentCategories = db.categoryDao().getAllForUser(userId)
+                    val selectedCategory = requestedCategory?.takeIf { id -> currentCategories.any { it.id == id } }
+                    val rows = dao.getForUserFiltered(
+                        userId,
+                        requestedStart.takeUnless { requestedFilter == "all" },
+                        requestedEnd.takeUnless { requestedFilter == "all" },
+                        selectedCategory,
+                        requestedSearch,
+                    )
+                    // I checked existence in the same read so the empty message matches the results.
+                    Triple(rows, rows.isNotEmpty() || dao.hasForUser(userId), currentCategories)
+                }
+                coroutineContext.ensureActive()
+                // I checked the selection again in case controls changed before cancellation.
+                if (!isCurrentSelection()) return@collect
+                categories = loadedCategories
+                categoriesLoaded = true
+                if (categoryId != null && loadedCategories.none { it.id == categoryId }) {
+                    // I changed the selection before publishing rows for All categories.
+                    categoryId = null
+                    categoryNotice = "The previously selected category is no longer available. Showing All categories."
+                    return@collect
+                }
+                expenses = loadedExpenses
+                hasExpenses = anyExpenses
+                loading = false
             }
-            coroutineContext.ensureActive()
-            // I checked the selection again in case controls changed before cancellation.
-            if (!isCurrentSelection()) return@LaunchedEffect
-            categories = loadedCategories
-            categoriesLoaded = true
-            if (categoryId != null && loadedCategories.none { it.id == categoryId }) {
-                // I changed the selection before publishing rows for All categories.
-                categoryId = null
-                categoryNotice = "The previously selected category is no longer available. Showing All categories."
-                return@LaunchedEffect
-            }
-            expenses = loadedExpenses
-            hasExpenses = anyExpenses
-            loading = false
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {

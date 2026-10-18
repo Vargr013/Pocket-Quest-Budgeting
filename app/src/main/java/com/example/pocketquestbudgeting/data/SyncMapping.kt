@@ -21,6 +21,16 @@ object SyncMapping {
             val name = values["name"] as? String ?: error("Invalid category name.")
             require(name.isNotBlank() && name == name.trim()) { "Use a nonblank trimmed category name." }
         }
+        if (type == "expenses") {
+            checkKey("categories", values["categoryId"] as String)
+            val receipt = values["receiptObjectPath"]
+            require(receipt == null || receipt is String && receipt.matches(Regex(
+                "users/[^/]+/receipts/[A-Za-z0-9_-]{1,80}/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"))) {
+                "Use a cloud receipt object path, never a local file path."
+            }
+            ExpenseChecks.requireValues(values["amountCents"] as Long, values["date"] as String,
+                values["startTime"] as String, values["endTime"] as String, values["description"] as String)
+        }
         val json = JSONObject()
         values.toSortedMap().forEach { (key, value) ->
             // I kept cents as integers and excluded device paths and credentials (Google, 2026v).

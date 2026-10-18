@@ -52,14 +52,5 @@ internal fun parseExpenseCents(text: String): Long? {
     }
 }
 
-internal fun validExpenseDate(date: String): Boolean {
-    if (!Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}").matches(date)) return false
-    val year = date.substring(0, 4).toInt()
-    val month = date.substring(5, 7).toInt()
-    val day = date.substring(8, 10).toInt()
-    if (year == 0 || month !in 1..12) return false
-    // I checked the actual month length so impossible dates are rejected, not adjusted.
-    val leapYear = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-    val days = intArrayOf(31, if (leapYear) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-    return day in 1..days[month - 1]
-}
+internal fun validExpenseDate(date: String): Boolean =
+    com.example.pocketquestbudgeting.data.ExpenseChecks.validDate(date)

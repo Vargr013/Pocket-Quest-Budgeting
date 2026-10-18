@@ -1,10 +1,11 @@
 package com.example.pocketquestbudgeting.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "expenses", indices = [Index("userId"), Index("categoryId")])
+@Entity(tableName = "expenses", indices = [Index("userId"), Index("categoryId"), Index(value = ["userId", "cloudId"], unique = true)])
 data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: Long,
@@ -17,4 +18,7 @@ data class ExpenseEntity(
     val endTime: String,
     val description: String,
     val receiptImageUri: String? = null,
+    val cloudId: String? = null,
+    @ColumnInfo(defaultValue = "0") val isDeleted: Boolean = false,
+    val receiptObjectPath: String? = null,
 )
