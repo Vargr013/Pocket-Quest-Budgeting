@@ -10,9 +10,17 @@ object SyncMapping {
         "monthlyGoals" to setOf("minimumCents", "maximumCents", "startDate", "endDate"),
     )
 
+    fun checkType(type: String) { require(type in fields) { "Unsupported record type." } }
+
     fun checkKey(type: String, id: String) {
-        require(type in fields) { "Unsupported record type." }
+        checkType(type)
+        if (type == "monthlyGoals") require(MonthlyGoalChecks.validMonth(id)) { "Use a canonical YYYY-MM month." }
         require(id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) { "Invalid stable record ID." }
+    }
+
+    fun checkIdentity(type: String, id: String, values: Map<String, Any?>) {
+        checkKey(type, id)
+        if (type == "monthlyGoals") require(MonthlyGoalChecks.monthKey(values["startDate"] as String, values["endDate"] as String) == id)
     }
 
     fun encode(type: String, values: Map<String, Any?>): String {
@@ -31,6 +39,8 @@ object SyncMapping {
             ExpenseChecks.requireValues(values["amountCents"] as Long, values["date"] as String,
                 values["startTime"] as String, values["endTime"] as String, values["description"] as String)
         }
+        if (type == "monthlyGoals") MonthlyGoalChecks.requireValues(values["minimumCents"] as Long,
+            values["maximumCents"] as Long, values["startDate"] as String, values["endDate"] as String)
         val json = JSONObject()
         values.toSortedMap().forEach { (key, value) ->
             // I kept cents as integers and excluded device paths and credentials (Google, 2026v).

@@ -110,6 +110,12 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
         reload++
     }
 
+    // I reloaded accepted goal changes from Room (Google, 2026k).
+    LaunchedEffect(userId, inspecting) {
+        if (!inspecting) DatabaseProvider.get(context).invalidationTracker
+            .createFlow("budget_goals", emitInitialState = false).collect { reload++ }
+    }
+
     // I keyed the loading effect to the account, period and reload value.
     LaunchedEffect(userId, period, reload) {
         if (inspecting) return@LaunchedEffect

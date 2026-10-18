@@ -129,7 +129,7 @@ class ExpenseSyncTest {
         assertEquals(2, db.expenseDao().getForUser(account.localUserId).size)
     }
 
-    @Test fun monthlyGoalsKeptTheBroadImportMarkerForTheirOwnIntegration() = runBlocking {
+    @Test fun unmappedMonthlyGoalsKeptTheBroadImportMarker() = runBlocking {
         db.openHelper.writableDatabase.execSQL("UPDATE users SET importPending = 1 WHERE id = ?", arrayOf(account.localUserId))
         db.budgetGoalDao().insert(BudgetGoalEntity(userId = account.localUserId, minimumAmount = 0,
             maximumAmount = 12345, startDate = "2026-10-01", endDate = "2026-10-31"))

@@ -129,12 +129,43 @@ service cloud.firestore {
         && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'expenses');
       allow delete: if false;
     }
+    function validMonthlyGoal(id, data) {
+      let year = int(id[0:4]);
+      let month = int(id[5:7]);
+      let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+      let last = month == 2 ? (leap ? '29' : '28') : (month in [4, 6, 9, 11] ? '30' : '31');
+      // I tied both calendar dates to the document month and kept the limits as integer cents (Google, 2026p).
+      return id.matches('[0-9]{4}-(0[1-9]|1[0-2])') && year > 0
+        && data.keys().hasAll(['minimumCents', 'maximumCents', 'startDate', 'endDate',
+          'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['minimumCents', 'maximumCents', 'startDate', 'endDate',
+          'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.minimumCents is int && data.maximumCents is int
+        && data.minimumCents >= 0 && data.maximumCents >= data.minimumCents
+        && data.startDate is string && data.startDate == id + '-01'
+        && data.endDate is string && data.endDate == id + '-' + last
+        && data.schemaVersion is int && data.schemaVersion == 1 && data.revision is int && data.revision > 0
+        && mutationId(data.lastMutationId) && data.updatedAt == request.time && data.isDeleted is bool
+        && (data.isDeleted ? data.deletedAt == request.time : data.deletedAt == null);
+    }
+    match /users/{uid}/monthlyGoals/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validMonthlyGoal(id, request.resource.data)
+        && request.resource.data.revision == 1
+        && matchingReceipt(uid, id, request.resource.data, 0, 'monthlyGoals');
+      allow update: if isOwner(uid) && validMonthlyGoal(id, request.resource.data) && !resource.data.isDeleted
+        && request.resource.data.revision == resource.data.revision + 1
+        && (!request.resource.data.isDeleted || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt']))
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'monthlyGoals');
+      allow delete: if false;
+    }
     match /users/{uid}/mutations/{id} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && mutationId(id)
         && request.resource.data.keys().hasAll(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
         && request.resource.data.keys().hasOnly(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
-        && request.resource.data.recordType in ['categories', 'expenses'] && stableId(request.resource.data.recordId)
+        && request.resource.data.recordType in ['categories', 'expenses', 'monthlyGoals'] && stableId(request.resource.data.recordId)
         && request.resource.data.baseRevision is int && request.resource.data.baseRevision >= 0
         && request.resource.data.revision is int && request.resource.data.revision == request.resource.data.baseRevision + 1
         && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('[a-f0-9]{64}')

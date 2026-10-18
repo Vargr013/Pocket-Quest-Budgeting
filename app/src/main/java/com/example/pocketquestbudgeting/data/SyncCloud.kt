@@ -28,6 +28,7 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
         require(base >= 0 && base < Long.MAX_VALUE)
         SyncMapping.checkKey(operation.recordType, operation.recordId)
         val fields = SyncMapping.decode(operation.recordType, operation.payload)
+        SyncMapping.checkIdentity(operation.recordType, operation.recordId, fields)
         val fingerprint = SyncMapping.fingerprint(operation)
         val owner = firestore.collection("users").document(operation.uid)
         val record = owner.collection(operation.recordType).document(operation.recordId)
@@ -158,7 +159,7 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
     }
 
     override suspend fun download(account: SyncAccount, type: String): List<SyncRecord> {
-        SyncMapping.checkKey(type, "check")
+        SyncMapping.checkType(type)
         // I requested server data including tombstones; an empty cache cannot prove absence (Google, 2026l).
         return firestore.collection("users").document(account.uid).collection(type).get(Source.SERVER).awaitSync()
             .documents.map { it.toSyncRecord(account.uid, account.localUserId, type) }
@@ -178,6 +179,7 @@ private fun DocumentSnapshot.toSyncRecord(uid: String, userId: Long, type: Strin
     check(data.containsKey("deletedAt") && (data["deletedAt"] == null || data["deletedAt"] is Timestamp))
     check(deleted == (deletedAt != null))
     val business = data - setOf("schemaVersion", "revision", "lastMutationId", "updatedAt", "isDeleted", "deletedAt")
+    SyncMapping.checkIdentity(type, id, business)
     return SyncRecord(uid, userId, type, id, revision, SyncMapping.encode(type, business), deleted,
         updated.toDate().time, deletedAt?.toDate()?.time, mutationId)
 }

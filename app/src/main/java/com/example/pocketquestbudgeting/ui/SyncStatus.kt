@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import com.example.pocketquestbudgeting.data.MonthlyGoalSyncs
 import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
@@ -41,7 +42,7 @@ internal fun SyncStatus(account: SyncAccount) {
     val issues = operations.filter { it.state != "PENDING" }
     LaunchedEffect(review, operations) { if (review) server = db.syncDao().records(account.uid) }
     Column {
-        Text(if (operations.isEmpty()) "Category and expense changes are queued automatically. Goals and photos are still local."
+        Text(if (operations.isEmpty()) "Category, expense and monthly goal changes are queued automatically. Photos are still local."
             else "Saved locally: ${operations.size} pending; ${issues.size} need review.")
         Row {
             TextButton(onClick = { SyncWork.scheduleRetry(context, account) }) { Text("Refresh") }
@@ -65,11 +66,12 @@ internal fun SyncStatus(account: SyncAccount) {
                 Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
                 if (issue.state == "CONFLICT") {
                     Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
-                    if (remote != null && issue.recordType in listOf("categories", "expenses")) TextButton(onClick = { scope.launch {
+                    if (remote != null && issue.recordType in listOf("categories", "expenses", "monthlyGoals")) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, false, remote.revision) {
                                 if (issue.recordType == "categories") CategorySyncs.get(context).applyServer(it)
-                                else ExpenseSyncs.get(context).applyServer(it)
+                                else if (issue.recordType == "expenses") ExpenseSyncs.get(context).applyServer(it)
+                                else MonthlyGoalSyncs.get(context).applyServer(it)
                             }
                             review = false
                         } catch (cancelled: CancellationException) { throw cancelled

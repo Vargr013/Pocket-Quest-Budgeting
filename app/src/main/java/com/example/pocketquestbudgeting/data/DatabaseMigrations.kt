@@ -93,5 +93,13 @@ object DatabaseMigrations {
             db.execSQL("CREATE UNIQUE INDEX index_expenses_userId_cloudId ON expenses(userId, cloudId)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8)
+    val FROM_8_TO_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I retained every legacy row; only the effective month row receives a mapping (Google, 2026u).
+            db.execSQL("ALTER TABLE budget_goals ADD COLUMN monthKey TEXT")
+            db.execSQL("ALTER TABLE budget_goals ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("CREATE UNIQUE INDEX index_budget_goals_userId_monthKey ON budget_goals(userId, monthKey)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9)
 }

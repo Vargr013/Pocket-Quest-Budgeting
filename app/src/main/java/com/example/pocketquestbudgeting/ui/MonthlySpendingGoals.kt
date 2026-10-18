@@ -33,7 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.room.withTransaction
+import com.example.pocketquestbudgeting.data.AccountSessions
+import com.example.pocketquestbudgeting.data.MonthlyGoalSyncs
+import kotlinx.coroutines.flow.collectLatest
 import com.example.pocketquestbudgeting.data.BudgetGoalEntity
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import kotlinx.coroutines.CancellationException
@@ -42,7 +44,6 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.foundation.layout.fillMaxWidth
 import kotlin.math.roundToInt
 
 
@@ -62,11 +63,14 @@ internal fun MonthlySpendingGoals(userId: Long) {
     val scope = rememberCoroutineScope()
     var month by remember { mutableStateOf(historyShortcutRange("month")) }
     var reload by remember { mutableStateOf(0) }
-    var goal by remember(month, reload) { mutableStateOf<BudgetGoalEntity?>(null) }
+    var goal by remember(userId, month, reload) { mutableStateOf<BudgetGoalEntity?>(null) }
     var spentCents by remember(month, reload) { mutableStateOf(0L) }    // I totalled this month's expenses so the dashboard can show progress against the monthly limits.
     var loading by remember(month, reload) { mutableStateOf(!inspecting) }
     var loadError by remember(month, reload) { mutableStateOf<String?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
+    var draftGoalId by rememberSaveable(userId) { mutableStateOf(0L) }
+    var reviewedMinimum by rememberSaveable(userId) { mutableStateOf(0L) }
+    var reviewedMaximum by rememberSaveable(userId) { mutableStateOf(0L) }
     var draftStart by rememberSaveable { mutableStateOf("") }
     var draftEnd by rememberSaveable { mutableStateOf("") }
     var minimum by rememberSaveable { mutableStateOf("") }
@@ -84,6 +88,11 @@ internal fun MonthlySpendingGoals(userId: Long) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         refreshMonth()
         reload++
+    }
+    // I refreshed Room-backed values without changing an open editor draft (Google, 2026k).
+    LaunchedEffect(userId, inspecting) {
+        if (!inspecting) DatabaseProvider.get(context).invalidationTracker
+            .createFlow("budget_goals", "expenses", emitInitialState = false).collectLatest { reload++ }
     }
     LaunchedEffect(userId, month, reload) {
         if (inspecting) return@LaunchedEffect
@@ -184,6 +193,9 @@ internal fun MonthlySpendingGoals(userId: Long) {
                             month = current
                             reload++
                         } else {
+                            draftGoalId = saved?.id ?: 0L
+                            reviewedMinimum = saved?.minimumAmount ?: 0L
+                            reviewedMaximum = saved?.maximumAmount ?: 0L
                             draftStart = month.start
                             draftEnd = month.end
                             minimum = saved?.let { centsToBudgetInput(it.minimumAmount) }.orEmpty()
@@ -250,16 +262,20 @@ internal fun MonthlySpendingGoals(userId: Long) {
                     saving = true
                     val start = draftStart
                     val end = draftEnd
+                    val reviewed = if (draftGoalId == 0L) null else BudgetGoalEntity(
+                        id = draftGoalId, userId = userId, minimumAmount = reviewedMinimum,
+                        maximumAmount = reviewedMaximum, startDate = start, endDate = end,
+                    )
+                    val account = AccountSessions.get(context).state.value.account
+                    if (account == null || account.localUserId != userId) {
+                        saving = false
+                        saveError = "Please log in again. Your amounts are kept."
+                        return@TextButton
+                    }
                     scope.launch {
                         try {
-                            val db = DatabaseProvider.get(context)
-
-                            // I kept the month check and goal save in one transaction (Google, 2026j).
-                            val saved = db.withTransaction {
-                                // I checked again after waiting for the database so an old draft stays in its month.
-                                if (historyShortcutRange("month").start != start) return@withTransaction false
-                                db.budgetGoalDao().saveForMonth(userId, start, end, minCents, maxCents)
-                                true
+                            val saved = MonthlyGoalSyncs.get(context).saveForMonth(account, start, end, minCents, maxCents, reviewed) {
+                                historyShortcutRange("month").let { it.start == start && it.end == end }
                             }
                             if (saved) {
                                 editing = false
@@ -271,6 +287,8 @@ internal fun MonthlySpendingGoals(userId: Long) {
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
+                        } catch (changed: IllegalStateException) {
+                            saveError = changed.message ?: "Could not save the goals. Your amounts are kept. Please try again."
                         } catch (_: Exception) {
                             saveError = "Could not save the goals. Your amounts are kept. Please try again."
                         } finally {

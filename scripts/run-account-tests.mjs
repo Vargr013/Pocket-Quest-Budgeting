@@ -37,9 +37,13 @@ if (process.env.POCKET_EXPENSE_TESTS === '1') {
   if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Expense tests require Firestore.');
   args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseSyncTest,com.example.pocketquestbudgeting.data.ExpenseMigrationTest');
 }
+if (process.env.POCKET_GOAL_TESTS === '1') {
+  if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Goal tests require Firestore.');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalSyncTest,com.example.pocketquestbudgeting.data.MonthlyGoalMigrationTest');
+}
 // Firestore integration cases need both local emulators; the older Auth-only command excludes them.
 if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest');
 }
 const result = process.platform === 'win32'
   ? spawnSync('cmd.exe', ['/d', '/c', 'gradlew.bat', ...args], { stdio: 'inherit' })

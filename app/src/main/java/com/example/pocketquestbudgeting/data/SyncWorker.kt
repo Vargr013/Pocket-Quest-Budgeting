@@ -60,21 +60,23 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
         val coordinator = PocketQuestSync.get(applicationContext)
         return try {
             val expenses = ExpenseSyncs.get(applicationContext)
-            val importNeedsReview = expenses.importExisting(account)
+            val goals = MonthlyGoalSyncs.get(applicationContext)
+            val importNeedsReview = expenses.importExisting(account) + goals.importExisting(account)
             val result = coordinator.retryPending(account)
             if (result == SyncRun.DETACHED) return Result.success()
             if (result == SyncRun.RETRY) return Result.retry()
             val categoryCloud = FirestoreSyncCloud(FirebaseFirestore.getInstance())
             CategorySyncs.get(applicationContext).refresh(account, categoryCloud)
             expenses.refresh(account)
+            goals.refresh(account)
             expenses.finishRecordImport(account)
-            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" }
+            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" }
             for (type in types) {
                 if (!session.isCurrent(account)) return Result.success()
                 coordinator.refreshFromServer(account, type)
             }
             if (importNeedsReview > 0) Result.failure(workDataOf("message" to
-                "Some local records need review before import. Correct their category, amount, date, times or description; other valid records can still sync."))
+                "Some local records need review before import. Correct their category, amount, date, times, description or monthly limits/range; other valid records can still sync."))
             else Result.success()
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
         } catch (error: Exception) {

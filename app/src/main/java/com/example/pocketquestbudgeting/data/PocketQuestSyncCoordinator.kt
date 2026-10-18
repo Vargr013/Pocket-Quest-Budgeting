@@ -37,18 +37,20 @@ class PocketQuestSyncCoordinator(
 
     suspend fun saveLocalAndEnqueue(
         account: SyncAccount, type: String, recordId: String,
-        fields: Map<String, Any?>, deleted: Boolean = false,
+        fields: Map<String, Any?>, deleted: Boolean = false, creating: Boolean = false,
         writeLocal: suspend () -> Unit,
     ): String {
+        require(!creating || type == "monthlyGoals")
         SyncMapping.checkKey(type, recordId)
         val payload = SyncMapping.encode(type, fields)
+        SyncMapping.checkIdentity(type, recordId, fields)
         val mutationId = UUID.randomUUID().toString()
         // I committed the local edit and its durable snapshot together (Google, 2026j).
         db.withTransaction {
             requireOwner(account)
             val record = dao.record(account.uid, type, recordId)
                 ?: SyncRecord(account.uid, account.localUserId, type, recordId)
-            check(!record.isDeleted) { "This record was deleted. Review the server version." }
+            check(creating || !record.isDeleted) { "This record was deleted. Review the server version." }
             var pending = dao.forRecord(account.uid, type, recordId)
             // I replaced only a definite rejection; uncertain uploads kept their original snapshot.
             if ((type == "categories" && pending.firstOrNull()?.lastError == CATEGORY_NAME_TAKEN)
@@ -57,7 +59,8 @@ class PocketQuestSyncCoordinator(
                 pending = emptyList()
             }
             check(pending.none { it.state == "CONFLICT" || it.isDeleted }) { "Review this record before editing again." }
-            val base = if (pending.isEmpty()) record.revision else null
+            // I kept new month claims at revision zero so existing cloud months needed review (Google, 2026x).
+            val base = if (pending.isEmpty()) { if (creating) 0L else record.revision } else null
             check(base != Long.MAX_VALUE) { "Revision limit reached." }
             writeLocal()
             dao.put(record)
@@ -147,6 +150,7 @@ class PocketQuestSyncCoordinator(
 
     private suspend fun receiveInside(account: SyncAccount, remote: SyncRecord) {
         check(remote.uid == account.uid && remote.userId == account.localUserId)
+        SyncMapping.checkIdentity(remote.recordType, remote.recordId, SyncMapping.decode(remote.recordType, remote.payload))
         val old = dao.record(account.uid, remote.recordType, remote.recordId)
         if (remote.revision < (old?.revision ?: 0)) return
         check(old?.isDeleted != true || remote.isDeleted) { "A server tombstone cannot be restored implicitly." }
