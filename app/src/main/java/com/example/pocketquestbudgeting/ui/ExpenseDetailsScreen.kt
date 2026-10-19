@@ -109,7 +109,7 @@ fun ExpenseDetailsScreen(userId: Long, expenseId: Long?, onBack: () -> Unit, onE
                 Text("End time: ${loaded.endTime}")
                 Text("Description: ${loaded.description}")
                 Text("Category: $categoryName")
-                ExpenseReceipt(loaded.receiptImageUri, enabled = !deleting)
+                SyncedExpenseReceipt(loaded, enabled = !deleting)
             }
         }
     }

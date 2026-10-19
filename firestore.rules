@@ -114,6 +114,59 @@ service cloud.firestore {
       return category.isDeleted == false || data.isDeleted
         || (exists(recordPath(uid, 'expenses', id)) && get(recordPath(uid, 'expenses', id)).data.categoryId == data.categoryId);
     }
+    function objectGuard(uid, path) {
+      return /databases/$(database)/documents/users/$(uid)/receiptObjects/$(path.split('/')[4]);
+    }
+    function validObjectPath(uid, expense, path) {
+      return path is string && path.split('/').size() == 5
+        && path == 'users/' + uid + '/receipts/' + expense + '/' + path.split('/')[4]
+        && mutationId(expense) && mutationId(path.split('/')[4]);
+    }
+    function changedObject(uid, expense, path, state, mutation) {
+      let data = getAfter(objectGuard(uid, path)).data;
+      return validObjectPath(uid, expense, path) && data.objectPath == path
+        && data.expenseCloudId == expense && data.state == state
+        && data.lastExpenseMutationId == mutation && data.updatedAt == request.time;
+    }
+    function expensePhotoChange(uid, id, old, data) {
+      return (old == data.receiptObjectPath && !data.isDeleted)
+        || ((old == null || changedObject(uid, id, old, 'RETIRED', data.lastMutationId))
+          && (data.isDeleted || data.receiptObjectPath == null
+            || changedObject(uid, id, data.receiptObjectPath, 'PUBLISHED', data.lastMutationId)));
+    }
+    function validObject(uid, id, data) {
+      return data.keys().hasAll(['schemaVersion', 'expenseCloudId', 'objectPath', 'state', 'createdAt', 'updatedAt', 'lastExpenseMutationId'])
+        && data.keys().hasOnly(['schemaVersion', 'expenseCloudId', 'objectPath', 'state', 'createdAt', 'updatedAt', 'lastExpenseMutationId'])
+        && data.schemaVersion is int && data.schemaVersion == 1 && mutationId(id)
+        && validObjectPath(uid, data.expenseCloudId, data.objectPath)
+        && data.objectPath.split('/')[4] == id && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    match /users/{uid}/receiptObjects/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validObject(uid, id, request.resource.data)
+        && request.resource.data.state == 'STAGED' && request.resource.data.createdAt == request.time
+        && request.resource.data.lastExpenseMutationId == null
+        && !get(recordPath(uid, 'expenses', request.resource.data.expenseCloudId)).data.isDeleted;
+      // I retired each path permanently before allowing file cleanup (Google, 2026z).
+      allow update: if isOwner(uid) && validObject(uid, id, request.resource.data)
+        && request.resource.data.expenseCloudId == resource.data.expenseCloudId
+        && request.resource.data.objectPath == resource.data.objectPath
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (resource.data.state == 'STAGED' && request.resource.data.state == 'RETIRED'
+          && request.resource.data.lastExpenseMutationId == null
+          && getAfter(recordPath(uid, 'expenses', resource.data.expenseCloudId)).data.receiptObjectPath != resource.data.objectPath
+          || objectTransition(uid, resource.data, request.resource.data));
+      allow delete: if false;
+    }
+    function objectTransition(uid, old, data) {
+      let before = get(recordPath(uid, 'expenses', old.expenseCloudId)).data;
+      let after = getAfter(recordPath(uid, 'expenses', old.expenseCloudId)).data;
+      return mutationId(data.lastExpenseMutationId) && after.lastMutationId == data.lastExpenseMutationId
+        && after.revision == before.revision + 1 && !before.isDeleted
+        && (old.state == 'STAGED' && data.state == 'PUBLISHED' && !after.isDeleted && after.receiptObjectPath == old.objectPath
+          || old.state == 'PUBLISHED' && data.state == 'RETIRED' && before.receiptObjectPath == old.objectPath
+            && (after.isDeleted || after.receiptObjectPath != old.objectPath));
+    }
     match /users/{uid}/expenses/{id} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && stableId(id) && validExpense(request.resource.data)
@@ -122,7 +175,7 @@ service cloud.firestore {
         && matchingReceipt(uid, id, request.resource.data, 0, 'expenses');
       allow update: if isOwner(uid) && validExpense(request.resource.data) && !resource.data.isDeleted
         && request.resource.data.revision == resource.data.revision + 1
-        && request.resource.data.receiptObjectPath == resource.data.receiptObjectPath
+        && expensePhotoChange(uid, id, resource.data.receiptObjectPath, request.resource.data)
         && (!request.resource.data.isDeleted || request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt']))
         && allowedExpenseCategory(uid, id, request.resource.data)

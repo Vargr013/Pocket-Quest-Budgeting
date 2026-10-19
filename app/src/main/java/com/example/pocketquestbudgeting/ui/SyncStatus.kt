@@ -25,6 +25,7 @@ import com.example.pocketquestbudgeting.data.PocketQuestSync
 import com.example.pocketquestbudgeting.data.SyncAccount
 import com.example.pocketquestbudgeting.data.SyncRecord
 import com.example.pocketquestbudgeting.data.SyncWork
+import com.example.pocketquestbudgeting.data.ReceiptSyncs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,8 @@ internal fun SyncStatus(account: SyncAccount) {
     val context = LocalContext.current.applicationContext
     val db = remember(context) { DatabaseProvider.get(context) }
     val operations by remember(account.uid) { db.syncDao().observe(account.uid) }.collectAsState(emptyList())
+    val receiptJobs by remember(account.uid) { db.receiptJobDao().observe(account.uid) }.collectAsState(emptyList())
+    val receiptDownloads by remember(account.uid) { db.receiptJobDao().observeCaches(account.uid) }.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
     val work by remember(account.uid) { androidx.work.WorkManager.getInstance(context)
         .getWorkInfosForUniqueWorkFlow("pocket-sync-${account.uid}") }.collectAsState(emptyList())
@@ -42,14 +45,20 @@ internal fun SyncStatus(account: SyncAccount) {
     val issues = operations.filter { it.state != "PENDING" }
     LaunchedEffect(review, operations) { if (review) server = db.syncDao().records(account.uid) }
     Column {
-        Text(if (operations.isEmpty()) "Category, expense and monthly goal changes are queued automatically. Photos are still local."
+        Text(if (operations.isEmpty()) "Category, expense, monthly goal and receipt changes are queued automatically."
             else "Saved locally: ${operations.size} pending; ${issues.size} need review.")
+        val pendingPhotos = receiptJobs.count { it.selected } + receiptDownloads.count { it.state == "DOWNLOAD_PENDING" }
+        val photoErrors = receiptJobs.count { it.lastError != null } + receiptDownloads.count { it.lastError != null }
+        if (pendingPhotos > 0 || photoErrors > 0) Text("Receipts: $pendingPhotos pending; $photoErrors need attention. Open the expense for its photo status.")
         Row {
             TextButton(onClick = { SyncWork.scheduleRetry(context, account) }) { Text("Refresh") }
-            if (issues.isNotEmpty()) {
+            if (issues.isNotEmpty() || photoErrors > 0) {
                 TextButton(onClick = { review = true }) { Text("Review sync") }
                 TextButton(onClick = { scope.launch {
-                    try { PocketQuestSync.get(context).retryFailures(account) }
+                    try {
+                        ReceiptSyncs.get(context).retryFailures(account)
+                        PocketQuestSync.get(context).retryFailures(account)
+                    }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { message = "Could not retry. Please check your account and try again." }
                 } }) { Text("Retry failed") }

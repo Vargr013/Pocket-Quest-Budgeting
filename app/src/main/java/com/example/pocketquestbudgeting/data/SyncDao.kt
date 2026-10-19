@@ -40,4 +40,7 @@ interface SyncDao {
 
     @Query("DELETE FROM sync_queue WHERE uid = :uid AND recordType = :type AND recordId = :id")
     suspend fun removeForReview(uid: String, type: String, id: String)
+
+    @Query("UPDATE sync_queue SET payload = :payload, receiptMode = 'FROZEN' WHERE sequence = :sequence AND receiptMode = 'KEEP'")
+    suspend fun freezeReceipt(sequence: Long, payload: String)
 }

@@ -30,7 +30,8 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
     private val expenses = db.expenseDao()
     private val categories = CategorySync(db, sync)
 
-    suspend fun save(account: SyncAccount, draft: ExpenseEntity): Int = db.withTransaction {
+    suspend fun save(account: SyncAccount, draft: ExpenseEntity, receiptChange: ReceiptChange? = null,
+        reviewedReceiptPath: String? = null): Int = db.withTransaction {
         sync.checkOwner(account)
         require(draft.userId == account.localUserId)
         ExpenseChecks.requireValues(draft.amount, draft.date, draft.startTime, draft.endTime, draft.description)
@@ -41,11 +42,18 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
         val failure = old?.cloudId?.let { db.syncDao().forRecord(account.uid, "expenses", it).firstOrNull()?.lastError }
         if (category.isArchived && (old?.categoryId != category.id || failure == EXPENSE_CATEGORY_UNAVAILABLE)) return@withTransaction -1
         val mappedCategory = categories.ensureMapped(account, category.id)
+        val change = receiptChange ?: if (draft.receiptImageUri == old?.receiptImageUri) ReceiptChange.KEEP
+            else if (draft.receiptImageUri == null) ReceiptChange.REMOVE else ReceiptChange.REPLACE
+        if (receiptChange != null && change != ReceiptChange.KEEP) {
+            if (old?.receiptObjectPath != reviewedReceiptPath) throw ReceiptReviewRequired()
+        }
         val saved = draft.copy(cloudId = old?.cloudId ?: UUID.randomUUID().toString(), isDeleted = false,
-            receiptObjectPath = old?.receiptObjectPath?.takeIf { old.receiptImageUri == draft.receiptImageUri })
+            receiptObjectPath = old?.receiptObjectPath,
+            receiptImageUri = if (change == ReceiptChange.KEEP) old?.receiptImageUri ?: draft.receiptImageUri else draft.receiptImageUri)
         sync.saveLocalAndEnqueue(account, "expenses", requireNotNull(saved.cloudId),
-            ExpenseMapping.fields(saved, requireNotNull(mappedCategory.cloudId))) {
+            ExpenseMapping.fields(saved, requireNotNull(mappedCategory.cloudId)), receiptMode = "KEEP") {
             if (old == null) expenses.insert(saved) else check(expenses.updateSynced(saved) == 1)
+            if (change != ReceiptChange.KEEP) ReceiptState.choose(db, account, saved, change)
         }
         1
     }
@@ -60,8 +68,9 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
         // I used the accepted snapshot when discarding a definitively rejected category change.
         val fields = if (failedReference && record != null && record.revision > 0) SyncMapping.decode("expenses", record.payload)
             else ExpenseMapping.fields(saved, requireNotNull(category.cloudId))
-        sync.saveLocalAndEnqueue(account, "expenses", saved.cloudId, fields, true) {
+        sync.saveLocalAndEnqueue(account, "expenses", saved.cloudId, fields, true, receiptMode = "KEEP") {
             check(expenses.updateSynced(saved) == 1)
+            db.receiptJobDao().deselect(account.uid, saved.cloudId)
         }
         1
     }
@@ -110,7 +119,22 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
         val category = db.categoryDao().getByCloudId(record.userId, fields["categoryId"] as String)
             ?: error("Download the expense's category before applying it.")
         val old = expenses.getByCloudId(record.userId, record.recordId)
-        val downloaded = ExpenseMapping.read(record, category.id, old)
+        var downloaded = ExpenseMapping.read(record, category.id, old)
+        db.receiptJobDao().supersedeDownloads(record.uid, record.recordId, if (record.isDeleted) null else downloaded.receiptObjectPath)
+        val job = db.receiptJobDao().selected(record.uid, record.recordId)
+        if (job != null) {
+            if (record.isDeleted) db.receiptJobDao().deselect(record.uid, record.recordId)
+            else {
+                downloaded = downloaded.copy(receiptImageUri = if (job.remove) null else job.sourceLocalPath)
+                if (downloaded.receiptObjectPath != job.expectedAcceptedPath && downloaded.receiptObjectPath != job.targetObjectPath) {
+                    db.receiptJobDao().put(job.copy(phase = "CONFLICT", blocked = true,
+                        lastError = "The server receipt changed. Review both choices before publishing."))
+                }
+            }
+        } else if (downloaded.receiptObjectPath != null) {
+            downloaded = downloaded.copy(receiptImageUri = db.receiptJobDao()
+                .cached(record.uid, record.recordId, downloaded.receiptObjectPath)?.localPath ?: downloaded.receiptImageUri)
+        }
         if (old == null) expenses.insert(downloaded) else check(expenses.updateSynced(downloaded) == 1)
     }
 
@@ -125,3 +149,5 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
 object ExpenseSyncs {
     fun get(context: Context) = ExpenseSync(DatabaseProvider.get(context), PocketQuestSync.get(context))
 }
+
+internal class ReceiptReviewRequired : IllegalStateException("The receipt changed. Reopen this expense before changing its photo.")

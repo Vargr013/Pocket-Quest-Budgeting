@@ -41,6 +41,7 @@ beforeEach(async () => {
   await environment.withSecurityRulesDisabled(async (context) => {
     await clearFiles(ref(context.storage()));
   });
+  await seedReceiptGuard(receiptPath);
 });
 
 after(async () => { await environment?.cleanup(); });
@@ -64,6 +65,12 @@ async function seedDocument(path, data = setup) {
   await environment.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), path), data);
   });
+}
+
+async function seedReceiptGuard(path, state = 'STAGED') {
+  const parts = path.split('/');
+  await seedDocument(`users/${parts[1]}/expenses/${parts[3]}`, { isDeleted: false, receiptObjectPath: null });
+  await seedDocument(`users/${parts[1]}/receiptObjects/${parts[4]}`, { expenseCloudId: parts[3], objectPath: path, state });
 }
 
 async function seedFile(path = receiptPath, metadata = { contentType: 'image/png' }) {
@@ -145,6 +152,7 @@ test('owner can upload, read and delete an exact nested receipt path', async () 
   const object = ref(client(owner).storage(), receiptPath);
   await assertSucceeds(uploadBytes(object, png, { contentType: 'image/png' }));
   assert.deepEqual(Buffer.from(await assertSucceeds(getBytes(object))), png);
+  await seedReceiptGuard(receiptPath, 'RETIRED');
   await assertSucceeds(deleteObject(object));
 });
 
@@ -178,6 +186,7 @@ test('owner accepts JPEG and the 10 MiB boundary; rejects empty, oversized and u
   for (const [index, [bytes, metadata]] of invalidUploads.entries()) {
     const path = receiptPath.replace(jobId, `33333333-3333-4333-8333-${String(index).padStart(12, '0')}`);
     const object = ref(storage, path);
+    await seedReceiptGuard(path);
     await denied(uploadBytes(object, bytes, metadata));
     await assert.rejects(getBytes(object), { code: 'storage/object-not-found' });
   }
@@ -197,6 +206,7 @@ test('receipt ownership/custom metadata, overwrite and metadata changes are reje
 
 test('owner can clean up a legacy receipt whose metadata would fail a new upload', async () => {
   await seedFile(receiptPath, { contentType: 'text/plain', customMetadata: { uid: other } });
+  await seedReceiptGuard(receiptPath, 'RETIRED');
   await assertSucceeds(deleteObject(ref(client(owner).storage(), receiptPath)));
 });
 

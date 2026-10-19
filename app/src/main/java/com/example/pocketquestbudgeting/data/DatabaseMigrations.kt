@@ -101,5 +101,22 @@ object DatabaseMigrations {
             db.execSQL("CREATE UNIQUE INDEX index_budget_goals_userId_monthKey ON budget_goals(userId, monthKey)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9)
+    val FROM_9_TO_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I kept old queue snapshots frozen so a retry still used the original bytes (Google, 2026u).
+            db.execSQL("ALTER TABLE sync_queue ADD COLUMN receiptMode TEXT NOT NULL DEFAULT 'FROZEN'")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS receipt_jobs (
+                jobId TEXT NOT NULL PRIMARY KEY, uid TEXT NOT NULL, userId INTEGER NOT NULL,
+                expenseCloudId TEXT NOT NULL, sourceLocalPath TEXT, targetObjectPath TEXT NOT NULL,
+                expectedAcceptedPath TEXT, remove INTEGER NOT NULL, selected INTEGER NOT NULL,
+                phase TEXT NOT NULL, sourceSha256 TEXT, byteCount INTEGER, mimeType TEXT,
+                publicationMutationId TEXT, attemptCount INTEGER NOT NULL, lastError TEXT, blocked INTEGER NOT NULL)""")
+            db.execSQL("CREATE INDEX index_receipt_jobs_uid_expenseCloudId ON receipt_jobs(uid, expenseCloudId)")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS receipt_cache (
+                uid TEXT NOT NULL, userId INTEGER NOT NULL, expenseCloudId TEXT NOT NULL,
+                objectPath TEXT NOT NULL, localPath TEXT, state TEXT NOT NULL, lastError TEXT, blocked INTEGER NOT NULL,
+                PRIMARY KEY(uid, expenseCloudId, objectPath))""")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10)
 }

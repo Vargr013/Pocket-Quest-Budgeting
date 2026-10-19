@@ -421,7 +421,7 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                         )
                     }
                     // I showed the saved receipt from this list so a stored photo can still be opened.
-                    ExpenseReceipt(expense.receiptImageUri)
+                    SyncedExpenseReceipt(expense)
                 }
             }
         }

@@ -58,6 +58,21 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                             throw ExpenseCategoryUnavailable()
                         }
                     }
+                    val oldPhoto = if (operation.recordType == "expenses") current.getString("receiptObjectPath") else null
+                    val newPhoto = if (operation.recordType == "expenses") fields["receiptObjectPath"] as String? else null
+                    val photoChanges = operation.recordType == "expenses" && (oldPhoto != newPhoto || operation.isDeleted)
+                    val photoGuards = if (photoChanges) listOfNotNull(oldPhoto, newPhoto.takeUnless { operation.isDeleted })
+                        .distinct().associateWith { path ->
+                            val jobId = ReceiptChecks.pathJob(operation.uid, operation.recordId, path)
+                            val reference = owner.collection("receiptObjects").document(jobId)
+                            reference to transaction.get(reference)
+                        } else emptyMap()
+                    photoGuards.forEach { (path, pair) ->
+                        check(pair.second.exists()) { "Receipt state is missing. Review this photo before retrying." }
+                        check(pair.second.getString("state") == if (path == oldPhoto) "PUBLISHED" else "STAGED") {
+                            "The receipt state changed. Review this photo before retrying."
+                        }
+                    }
                     check(stillCurrent()) { "Session changed." }
                     val data = fields + mapOf(
                         "schemaVersion" to 1L, "revision" to base + 1, "lastMutationId" to operation.mutationId,
@@ -75,6 +90,10 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                             "lastMutationId" to operation.mutationId))
                     }
                     transaction.set(record, data)
+                    photoGuards.forEach { (path, pair) ->
+                        transaction.update(pair.first, mapOf("state" to if (path == oldPhoto) "RETIRED" else "PUBLISHED",
+                            "updatedAt" to FieldValue.serverTimestamp(), "lastExpenseMutationId" to operation.mutationId))
+                    }
                     transaction.set(acknowledgement, mapOf(
                         "recordType" to operation.recordType, "recordId" to operation.recordId,
                         "baseRevision" to base, "revision" to base + 1, "fingerprint" to fingerprint,

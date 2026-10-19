@@ -3,6 +3,7 @@ package com.example.pocketquestbudgeting.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "sync_records", primaryKeys = ["uid", "recordType", "recordId"], indices = [Index("userId")])
 data class SyncRecord(
@@ -32,4 +33,5 @@ data class SyncOperation(
     val state: String = "PENDING",
     val attemptCount: Long = 0,
     val lastError: String? = null,
+    @ColumnInfo(defaultValue = "'FROZEN'") val receiptMode: String = "FROZEN",
 )

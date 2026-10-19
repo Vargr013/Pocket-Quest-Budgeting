@@ -70,6 +70,11 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
             expenses.refresh(account)
             goals.refresh(account)
             expenses.finishRecordImport(account)
+            val receipts = ReceiptSyncs.get(applicationContext)
+            val receiptRetry = receipts.runPending(account)
+            val publicationResult = coordinator.retryPending(account)
+            if (publicationResult == SyncRun.DETACHED) return Result.success()
+            if (receiptRetry || publicationResult == SyncRun.RETRY) return Result.retry()
             val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" }
             for (type in types) {
                 if (!session.isCurrent(account)) return Result.success()

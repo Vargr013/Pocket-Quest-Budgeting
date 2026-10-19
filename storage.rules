@@ -13,11 +13,22 @@ service firebase.storage {
       function validPath() {
         return isUuid(expenseId) && isUuid(receiptJobId);
       }
-
-      allow get: if isOwner(uid) && validPath();
+      function expense() {
+        return firestore.get(/databases/(default)/documents/users/$(uid)/expenses/$(expenseId)).data;
+      }
+      function guard() {
+        return firestore.get(/databases/(default)/documents/users/$(uid)/receiptObjects/$(receiptJobId)).data;
+      }
+      function bound() {
+        return guard().expenseCloudId == expenseId
+          && guard().objectPath == 'users/' + uid + '/receipts/' + expenseId + '/' + receiptJobId;
+      }
+      allow get: if isOwner(uid) && validPath() && bound() && !expense().isDeleted
+        && (guard().state == 'STAGED' || guard().state == 'PUBLISHED' && expense().receiptObjectPath == guard().objectPath);
       allow list: if false;
       // I checked incoming size/type and rejected custom ownership metadata (Google, 2026y).
       allow create: if isOwner(uid) && validPath()
+        && bound() && guard().state == 'STAGED' && !expense().isDeleted
         && resource == null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ['image/jpeg', 'image/png']
@@ -25,7 +36,7 @@ service firebase.storage {
       // I kept published paths immutable; replacement uses a new receipt job ID.
       allow update: if false;
       // I kept cleanup separate because deletes have no incoming file metadata (Google, 2026ab).
-      allow delete: if isOwner(uid) && validPath();
+      allow delete: if isOwner(uid) && validPath() && bound() && guard().state == 'RETIRED';
     }
 
     match /{path=**} {

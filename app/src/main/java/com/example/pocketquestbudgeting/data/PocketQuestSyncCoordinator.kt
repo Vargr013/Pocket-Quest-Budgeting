@@ -37,7 +37,7 @@ class PocketQuestSyncCoordinator(
 
     suspend fun saveLocalAndEnqueue(
         account: SyncAccount, type: String, recordId: String,
-        fields: Map<String, Any?>, deleted: Boolean = false, creating: Boolean = false,
+        fields: Map<String, Any?>, deleted: Boolean = false, creating: Boolean = false, receiptMode: String = "FROZEN",
         writeLocal: suspend () -> Unit,
     ): String {
         require(!creating || type == "monthlyGoals")
@@ -65,7 +65,7 @@ class PocketQuestSyncCoordinator(
             writeLocal()
             dao.put(record)
             dao.insert(SyncOperation(mutationId = mutationId, uid = account.uid, userId = account.localUserId,
-                recordType = type, recordId = recordId, payload = payload, isDeleted = deleted, baseRevision = base))
+                recordType = type, recordId = recordId, payload = payload, isDeleted = deleted, baseRevision = base, receiptMode = receiptMode))
             requireOwner(account)
         }
         // Session recovery and periodic work cover interruption before this scheduling call.
@@ -80,10 +80,24 @@ class PocketQuestSyncCoordinator(
         for (head in heads) {
             var operation: SyncOperation? = head
             while (operation != null && operation.state == "PENDING") {
-                val sent = operation
+                var sent: SyncOperation = operation
                 if (!isCurrent(account)) return@withLock SyncRun.DETACHED
                 try {
                     requireOwner(account)
+                    if (sent.recordType == "expenses" && sent.receiptMode == "KEEP") {
+                        sent = db.withTransaction {
+                            requireOwner(account)
+                            val accepted = dao.record(account.uid, "expenses", sent.recordId)
+                            val fields = SyncMapping.decode("expenses", sent.payload).toMutableMap()
+                            if (accepted != null && accepted.revision == sent.baseRevision && accepted.revision > 0) {
+                                fields["receiptObjectPath"] = SyncMapping.decode("expenses", accepted.payload)["receiptObjectPath"]
+                            }
+                            val frozen = sent.copy(payload = SyncMapping.encode("expenses", fields), receiptMode = "FROZEN")
+                            dao.freezeReceipt(sent.sequence, frozen.payload)
+                            requireOwner(account)
+                            frozen
+                        }
+                    }
                     check(sent.userId == account.localUserId && sent.baseRevision != null)
                     if (sent.recordType == "expenses") {
                         val categoryId = SyncMapping.decode("expenses", sent.payload)["categoryId"] as String
@@ -131,8 +145,11 @@ class PocketQuestSyncCoordinator(
         // I removed only the exact sent operation, leaving newer edits in the queue.
         if (dao.acknowledge(account.uid, sent.mutationId) == 1) {
             val record = requireNotNull(dao.record(account.uid, sent.recordType, sent.recordId))
-            if (record.revision < revision) dao.put(record.copy(revision = revision, payload = sent.payload,
-                isDeleted = sent.isDeleted, lastMutationId = sent.mutationId, updatedAtMillis = null, deletedAtMillis = null))
+            if (record.revision < revision) {
+                dao.put(record.copy(revision = revision, payload = sent.payload,
+                    isDeleted = sent.isDeleted, lastMutationId = sent.mutationId, updatedAtMillis = null, deletedAtMillis = null))
+            }
+            ReceiptState.acknowledged(db, sent, record.revision <= revision)
             dao.forRecord(account.uid, sent.recordType, sent.recordId).firstOrNull()?.let { dao.setBase(it.sequence, revision) }
         }
         requireOwner(account)
@@ -176,12 +193,24 @@ class PocketQuestSyncCoordinator(
             val server = requireNotNull(dao.record(account.uid, type, id))
             check(server.revision == reviewedRevision) { "The server version changed. Review it again." }
             check(!keepLocal || !server.isDeleted) { "Deleted records need a new ID; they cannot be restored." }
+            if (!keepLocal && type == "expenses") db.receiptJobDao().deselect(account.uid, id)
             if (!keepLocal) applyServer(server)
             dao.removeForReview(account.uid, type, id)
             if (keepLocal) {
                 val latest = queue.last()
-                dao.insert(latest.copy(sequence = 0, mutationId = UUID.randomUUID().toString(), baseRevision = server.revision,
-                    state = "PENDING", attemptCount = 0, lastError = null))
+                val newId = UUID.randomUUID().toString()
+                val fields = if (type == "expenses") SyncMapping.decode(type, latest.payload).toMutableMap().apply {
+                    this["receiptObjectPath"] = SyncMapping.decode(type, server.payload)["receiptObjectPath"]
+                } else null
+                dao.insert(latest.copy(sequence = 0, mutationId = newId, baseRevision = server.revision,
+                    payload = fields?.let { SyncMapping.encode(type, it) } ?: latest.payload,
+                    state = "PENDING", attemptCount = 0, lastError = null, receiptMode = if (type == "expenses") "KEEP" else latest.receiptMode))
+                if (type == "expenses") {
+                    db.receiptJobDao().selected(account.uid, id)?.let { job ->
+                        db.receiptJobDao().put(job.copy(phase = "CONFLICT", publicationMutationId = null, blocked = true,
+                            lastError = "Review the receipt choice against the accepted server photo."))
+                    }
+                }
             }
             requireOwner(account)
         }

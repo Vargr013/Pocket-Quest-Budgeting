@@ -1,5 +1,7 @@
 package com.example.pocketquestbudgeting.ui
 
+import com.example.pocketquestbudgeting.data.ReceiptChange
+
 import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import androidx.activity.compose.BackHandler
@@ -84,6 +86,8 @@ fun AddExpenseScreen(
     var loadedUserId by rememberSaveable(userId, expenseId) { mutableStateOf<Long?>(null) }
     // I used rememberSaveable to retain the form values when the activity is recreated (Google, 2026i).
     var receiptPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var receiptChange by rememberSaveable(userId, expenseId) { mutableStateOf(ReceiptChange.KEEP) }
+    var reviewedReceiptPath by rememberSaveable(userId, expenseId) { mutableStateOf<String?>(null) }
     var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
     var startTime by rememberSaveable { mutableStateOf("") }
     var endTime by rememberSaveable { mutableStateOf("") }
@@ -128,6 +132,7 @@ fun AddExpenseScreen(
                 description = expense.description
                 selectedCategoryId = expense.categoryId
                 receiptPath = expense.receiptImageUri
+                reviewedReceiptPath = expense.receiptObjectPath
                 loadedUserId = userId
                 loadedExpense = true
             }
@@ -361,9 +366,9 @@ fun AddExpenseScreen(
                     }
                 }
                 val path = receiptPath
-                if (path != null) {
-                    ExpenseReceipt(path)
-                    TextButton(onClick = { receiptPath = null; receiptError = null }, enabled = !saving && !receiptPending) {
+                if (path != null || reviewedReceiptPath != null && receiptChange != ReceiptChange.REMOVE) {
+                    if (path != null) ExpenseReceipt(path) else Text("Receipt saved online. Keep it or choose a replacement.")
+                    TextButton(onClick = { receiptPath = null; receiptError = null; receiptChange = ReceiptChange.REMOVE }, enabled = !saving && !receiptPending) {
                         Text(stringResource(R.string.remove_photo))
                     }
                 }
@@ -371,7 +376,7 @@ fun AddExpenseScreen(
                     userId = userId,
                     expenseId = expenseId,
                     enabled = !saving,
-                    onReceipt = { receiptPath = it; receiptError = null },
+                    onReceipt = { receiptPath = it; receiptError = null; receiptChange = ReceiptChange.REPLACE },
                     onError = { receiptError = it },
                     onPending = { receiptPending = it },
                 )
@@ -402,7 +407,7 @@ fun AddExpenseScreen(
                         val saved = ExpenseSyncs.get(context).save(CategorySyncs.account(context, userId),
                             ExpenseEntity(id = expenseId ?: 0, userId = userId, categoryId = categoryId,
                                 amount = amountCents, date = savedDate, startTime = savedStart, endTime = savedEnd,
-                                description = savedDescription, receiptImageUri = savedReceipt))
+                                description = savedDescription, receiptImageUri = savedReceipt), receiptChange, reviewedReceiptPath)
                         if (saved == 1) onBack() else if (saved == 0) {
                             saveError = "Expense unavailable. No changes were saved. You can go back to Details."
                         } else {
@@ -412,6 +417,8 @@ fun AddExpenseScreen(
                         }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
+                    } catch (_: com.example.pocketquestbudgeting.data.ReceiptReviewRequired) {
+                        saveError = "The receipt changed while editing. Your entries are kept. Reopen this expense to review its photo before saving."
                     } catch (_: Exception) {
                         saveError = "Could not save the expense to the database. Your entries and receipt are kept. Please try again."
                     } finally {
