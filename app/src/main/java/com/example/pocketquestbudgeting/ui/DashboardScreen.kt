@@ -183,9 +183,16 @@ fun DashboardScreen(
                             TextButton(onClick = { reload++ }) { Text("Retry") }
                         }
                         categoryRows.isEmpty() -> Text("No categories yet.", color = TextSecondary)
-                        else -> categoryRows.forEachIndexed { index, row ->
-                            if (index > 0) Spacer(Modifier.height(8.dp))
-                            CategoryProgressRow(row)
+                        else -> {
+                            categoryRows.take(3).forEachIndexed { index, row ->
+                                if (index > 0) Spacer(Modifier.height(8.dp))
+                                CategoryProgressRow(row)
+                            }
+                            if (categoryRows.size > 3) {
+                                TextButton(onClick = onCategorySpend) {
+                                    Text("See all", color = Teal)
+                                }
+                            }
                         }
                     }
                 }
@@ -210,8 +217,6 @@ fun DashboardScreen(
                     ExpenseRow("Pick n Pay", "Yesterday - Groceries", "R690")
                     Spacer(Modifier.height(8.dp))
                     ExpenseRow("Uber", "Yesterday - Transport", "R85")
-                    Spacer(Modifier.height(8.dp))
-                    ExpenseRow("Netflix", "This week - Entertainment", "R199")
                 }
             }
 

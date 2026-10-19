@@ -97,7 +97,12 @@ internal fun DashboardCategorySpending(userId: Long, onCategories: () -> Unit, o
                 } else if (totalCents == 0L) {
                     Text("No spending this month. Your categories are shown below.")
                 }
-                categories.forEach { category -> CategorySpendingRow(category, totalCents) }
+                categories.take(3).forEach { category -> CategorySpendingRow(category, totalCents) }
+                if (categories.size > 3) {
+                    TextButton(onClick = onSummary, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("See all")
+                    }
+                }
             }
         }
     }
