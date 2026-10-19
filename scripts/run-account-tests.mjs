@@ -41,17 +41,26 @@ if (process.env.POCKET_GOAL_TESTS === '1') {
   if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Goal tests require Firestore.');
   args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalSyncTest,com.example.pocketquestbudgeting.data.MonthlyGoalMigrationTest');
 }
+if (process.env.POCKET_SAVINGS_TESTS === '1') {
+  if (serial !== 'emulator-5554' || avd !== 'PocketQuest_Account_Tests_API35') throw new Error('Savings tests require the exact dedicated AVD on emulator-5554.');
+  if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Savings tests require Firestore.');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.SavingsFirebaseTest,com.example.pocketquestbudgeting.data.SavingsPersistenceTest,com.example.pocketquestbudgeting.data.EarnedAchievementPersistenceTest,com.example.pocketquestbudgeting.data.SavingsMigrationTest');
+}
 if (process.env.POCKET_RECEIPT_TESTS === '1') {
   if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080'
       || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== '127.0.0.1:9199') throw new Error('Receipt tests require local Firestore and Storage.');
   args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.ReceiptFirebaseTest,com.example.pocketquestbudgeting.data.ReceiptSyncTest,com.example.pocketquestbudgeting.data.ReceiptMigrationTest');
 }
 if (process.env.FIREBASE_STORAGE_EMULATOR_HOST !== '127.0.0.1:9199') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.ReceiptFirebaseTest');
+  const excluded = ['ReceiptFirebaseTest'];
+  if (process.env.POCKET_SAVINGS_TESTS !== '1') excluded.push('SavingsFirebaseTest');
+  args.push(`-Pandroid.testInstrumentationRunnerArguments.notClass=${excluded.map(name => `com.example.pocketquestbudgeting.data.${name}`).join(',')}`);
+} else if (process.env.POCKET_SAVINGS_TESTS !== '1') {
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.SavingsFirebaseTest');
 }
 // Firestore integration cases need both local emulators; the older Auth-only command excludes them.
 if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.ReceiptFirebaseTest');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.ReceiptFirebaseTest,com.example.pocketquestbudgeting.data.SavingsFirebaseTest');
 }
 const result = process.platform === 'win32'
   ? spawnSync('cmd.exe', ['/d', '/c', 'gradlew.bat', ...args], { stdio: 'inherit' })

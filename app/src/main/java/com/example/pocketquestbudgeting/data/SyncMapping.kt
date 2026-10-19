@@ -8,12 +8,16 @@ object SyncMapping {
         "categories" to setOf("name", "minimumCents", "maximumCents"),
         "expenses" to setOf("categoryId", "amountCents", "date", "startTime", "endTime", "description", "receiptObjectPath"),
         "monthlyGoals" to setOf("minimumCents", "maximumCents", "startDate", "endDate"),
+        SavingsMapping.GOALS to setOf("name", "targetCents", "targetDate", "note"),
+        SavingsMapping.CONTRIBUTIONS to setOf("goalCloudId", "kind", "amountCents", "effectiveDate", "reversesBusinessId", "note"),
+        SavingsMapping.AWARDS to setOf("badgeId", "criteriaVersion", "earnedAtEpochMillis", "earnedDate", "earnedZoneId", "evidenceRecordId"),
     )
 
     fun checkType(type: String) { require(type in fields) { "Unsupported record type." } }
 
     fun checkKey(type: String, id: String) {
         checkType(type)
+        if (type in SavingsMapping.types) { SavingsChecks.requireKey(id); return }
         if (type == "monthlyGoals") require(MonthlyGoalChecks.validMonth(id)) { "Use a canonical YYYY-MM month." }
         require(id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) { "Invalid stable record ID." }
     }
@@ -21,10 +25,16 @@ object SyncMapping {
     fun checkIdentity(type: String, id: String, values: Map<String, Any?>) {
         checkKey(type, id)
         if (type == "monthlyGoals") require(MonthlyGoalChecks.monthKey(values["startDate"] as String, values["endDate"] as String) == id)
+        if (type == SavingsMapping.GOALS) SavingsChecks.requireGoal(SavingsMapping.goal(1, id, values))
+        if (type == SavingsMapping.CONTRIBUTIONS) {
+            SavingsChecks.requireContribution(SavingsMapping.contribution(1, 1, id, values))
+            if (values["kind"] == SavingsChecks.OPENING) require(id == "opening:${values["goalCloudId"]}")
+        }
     }
 
     fun encode(type: String, values: Map<String, Any?>): String {
         require(values.keys == fields[type]) { "Use the exact agreed business fields." }
+        if (type in SavingsMapping.types) SavingsMapping.validate(type, values)
         if (type == "categories") {
             val name = values["name"] as? String ?: error("Invalid category name.")
             require(name.isNotBlank() && name == name.trim()) { "Use a nonblank trimmed category name." }
@@ -45,7 +55,7 @@ object SyncMapping {
         values.toSortedMap().forEach { (key, value) ->
             // I kept cents as integers and excluded device paths and credentials (Google, 2026v).
             require(value == null || value is String || value is Long || value is Boolean) { "Unsupported field type." }
-            when (key) {
+            if (type !in SavingsMapping.types) when (key) {
                 "minimumCents", "maximumCents", "amountCents" -> require(value is Long && value >= 0) { "Use whole nonnegative cents." }
                 "receiptObjectPath" -> require(value == null || value is String) { "Invalid receipt reference." }
                 else -> require(value is String) { "Invalid text field." }

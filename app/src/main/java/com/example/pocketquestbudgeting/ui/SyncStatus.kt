@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import com.example.pocketquestbudgeting.data.MonthlyGoalSyncs
+import com.example.pocketquestbudgeting.data.SavingsSyncs
+import com.example.pocketquestbudgeting.data.SavingsMapping
 import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
@@ -45,7 +47,7 @@ internal fun SyncStatus(account: SyncAccount) {
     val issues = operations.filter { it.state != "PENDING" }
     LaunchedEffect(review, operations) { if (review) server = db.syncDao().records(account.uid) }
     Column {
-        Text(if (operations.isEmpty()) "Category, expense, monthly goal and receipt changes are queued automatically."
+        Text(if (operations.isEmpty()) "Saved changes are queued automatically."
             else "Saved locally: ${operations.size} pending; ${issues.size} need review.")
         val pendingPhotos = receiptJobs.count { it.selected } + receiptDownloads.count { it.state == "DOWNLOAD_PENDING" }
         val photoErrors = receiptJobs.count { it.lastError != null } + receiptDownloads.count { it.lastError != null }
@@ -75,18 +77,19 @@ internal fun SyncStatus(account: SyncAccount) {
                 Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
                 if (issue.state == "CONFLICT") {
                     Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
-                    if (remote != null && issue.recordType in listOf("categories", "expenses", "monthlyGoals")) TextButton(onClick = { scope.launch {
+                    if (remote != null && issue.recordType in listOf("categories", "expenses", "monthlyGoals") + SavingsMapping.types) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, false, remote.revision) {
                                 if (issue.recordType == "categories") CategorySyncs.get(context).applyServer(it)
                                 else if (issue.recordType == "expenses") ExpenseSyncs.get(context).applyServer(it)
-                                else MonthlyGoalSyncs.get(context).applyServer(it)
+                                else if (issue.recordType == "monthlyGoals") MonthlyGoalSyncs.get(context).applyServer(it)
+                                else SavingsSyncs.get(context).applyServer(it)
                             }
                             review = false
                         } catch (cancelled: CancellationException) { throw cancelled
                         } catch (_: Exception) { message = "The record changed. Review it again before retrying." }
                     } }) { Text("Use reviewed server record") }
-                    if (remote != null && !remote.isDeleted) TextButton(onClick = { scope.launch {
+                    if (remote != null && !remote.isDeleted && !SavingsMapping.immutable(issue.recordType)) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, true, remote.revision) {}
                             review = false

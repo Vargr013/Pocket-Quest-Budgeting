@@ -61,7 +61,8 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
         return try {
             val expenses = ExpenseSyncs.get(applicationContext)
             val goals = MonthlyGoalSyncs.get(applicationContext)
-            val importNeedsReview = expenses.importExisting(account) + goals.importExisting(account)
+            val savings = SavingsSyncs.get(applicationContext)
+            val importNeedsReview = expenses.importExisting(account) + goals.importExisting(account) + savings.importExisting(account)
             val result = coordinator.retryPending(account)
             if (result == SyncRun.DETACHED) return Result.success()
             if (result == SyncRun.RETRY) return Result.retry()
@@ -75,7 +76,9 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
             val publicationResult = coordinator.retryPending(account)
             if (publicationResult == SyncRun.DETACHED) return Result.success()
             if (receiptRetry || publicationResult == SyncRun.RETRY) return Result.retry()
-            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" }
+            // I finished existing financial and receipt recovery before downloading the added feature paths.
+            savings.refresh(account)
+            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" && it !in SavingsMapping.types }
             for (type in types) {
                 if (!session.isCurrent(account)) return Result.success()
                 coordinator.refreshFromServer(account, type)

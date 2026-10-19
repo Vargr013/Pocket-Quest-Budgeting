@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
@@ -7,7 +7,11 @@ const target = new URL('app/src/debug/google-services.json', root);
 const demo = readFileSync(source, 'utf8');
 
 // I generated only debug configuration and refused to replace a selected project (Google, 2026m).
-if (existsSync(new URL('app/google-services.json', root))) {
+if (['app/google-services.json', 'app/src/google-services.json', 'app/src/Debug/google-services.json']
+    .some(path => {
+      const candidate = new URL(path, root);
+      return existsSync(candidate) && (!existsSync(target) || realpathSync.native(candidate) !== realpathSync.native(target));
+    })) {
   throw new Error('A real/common client configuration exists. Do not mix it with demo debug configuration.');
 }
 if (existsSync(target) && readFileSync(target, 'utf8') !== demo) {

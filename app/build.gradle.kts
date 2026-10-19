@@ -1,9 +1,49 @@
+import com.google.gms.googleservices.GoogleServicesTask
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
+}
+
+val firebaseDemoSource = rootProject.layout.projectDirectory.file("config/firebase/google-services.demo.json")
+val firebaseDemoTarget = layout.projectDirectory.file("src/debug/google-services.json")
+val firebaseCommonConfigs = listOf("google-services.json", "src/google-services.json", "src/Debug/google-services.json")
+    .map { layout.projectDirectory.file(it).asFile }
+    .filter { it.canonicalFile != firebaseDemoTarget.asFile.canonicalFile }
+
+tasks.register("prepareFirebaseDemo") {
+    group = "firebase"
+    description = "Prepares the synthetic debug Firebase client for builds and emulator tests."
+    doLast {
+        check(firebaseCommonConfigs.none { it.exists() }) {
+            "A Firebase client is already selected. Keep it; demo setup will not replace or override it. See README.md."
+        }
+        val source = firebaseDemoSource.asFile
+        val target = firebaseDemoTarget.asFile
+        check(!target.exists() || target.readBytes().contentEquals(source.readBytes())) {
+            "The debug Firebase client differs. Keep it; demo setup will not replace it. See README.md."
+        }
+        if (!target.exists()) {
+            target.parentFile.mkdirs()
+            source.copyTo(target)
+        }
+        logger.lifecycle("Prepared demo-pocket-quest for debug builds/emulator tests only. Normal cloud login needs the team's real client configuration.")
+    }
+}
+
+tasks.withType<GoogleServicesTask>().configureEach {
+    doFirst {
+        if (googleServicesJsonFiles.get().none { it.isFile }) {
+            throw GradleException(
+                "Firebase client configuration is missing. Put the team's google-services.json in app/google-services.json. " +
+                    "For debug builds/emulator tests only, run :app:prepareFirebaseDemo first. " +
+                    "The demo client does not support normal cloud login or release builds. See README.md: Firebase setup.",
+            )
+        }
+    }
 }
 
 android {

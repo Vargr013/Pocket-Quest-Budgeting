@@ -24,6 +24,7 @@ interface SyncCloud {
 
 class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
     override suspend fun send(operation: SyncOperation, stillCurrent: () -> Boolean): SendResult {
+        if (SavingsMapping.immutable(operation.recordType)) return sendImmutableSavings(firestore, operation, stillCurrent)
         val base = requireNotNull(operation.baseRevision)
         require(base >= 0 && base < Long.MAX_VALUE)
         SyncMapping.checkKey(operation.recordType, operation.recordId)
@@ -185,7 +186,7 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
     }
 }
 
-private fun DocumentSnapshot.toSyncRecord(uid: String, userId: Long, type: String): SyncRecord {
+internal fun DocumentSnapshot.toSyncRecord(uid: String, userId: Long, type: String): SyncRecord {
     SyncMapping.checkKey(type, id)
     val data = requireNotNull(data)
     check(data["schemaVersion"] == 1L)

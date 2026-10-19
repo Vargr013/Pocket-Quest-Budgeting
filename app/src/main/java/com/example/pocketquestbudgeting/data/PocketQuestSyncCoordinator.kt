@@ -40,7 +40,8 @@ class PocketQuestSyncCoordinator(
         fields: Map<String, Any?>, deleted: Boolean = false, creating: Boolean = false, receiptMode: String = "FROZEN",
         writeLocal: suspend () -> Unit,
     ): String {
-        require(!creating || type == "monthlyGoals")
+        require(!creating || type == "monthlyGoals" || type == SavingsMapping.GOALS)
+        require(!SavingsMapping.immutable(type) || !deleted)
         SyncMapping.checkKey(type, recordId)
         val payload = SyncMapping.encode(type, fields)
         SyncMapping.checkIdentity(type, recordId, fields)
@@ -60,7 +61,7 @@ class PocketQuestSyncCoordinator(
             }
             check(pending.none { it.state == "CONFLICT" || it.isDeleted }) { "Review this record before editing again." }
             // I kept new month claims at revision zero so existing cloud months needed review (Google, 2026x).
-            val base = if (pending.isEmpty()) { if (creating) 0L else record.revision } else null
+            val base = if (pending.isEmpty()) { if (creating || SavingsMapping.immutable(type)) 0L else record.revision } else null
             check(base != Long.MAX_VALUE) { "Revision limit reached." }
             writeLocal()
             dao.put(record)
@@ -75,7 +76,9 @@ class PocketQuestSyncCoordinator(
 
     suspend fun retryPending(account: SyncAccount): SyncRun = runLock.withLock {
         if (!isCurrent(account)) return@withLock SyncRun.DETACHED
-        val heads = dao.pending(account.uid).groupBy { it.recordType to it.recordId }.values.map { it.first() }.sortedBy { if (it.recordType == "categories") 0 else 1 }
+        val heads = dao.pending(account.uid).groupBy { it.recordType to it.recordId }.values.map { it.first() }.sortedBy {
+            when (it.recordType) { "categories" -> 0; SavingsMapping.GOALS -> 1; SavingsMapping.CONTRIBUTIONS -> 3; else -> 2 }
+        }
         var retry = false
         for (head in heads) {
             var operation: SyncOperation? = head
@@ -99,6 +102,27 @@ class PocketQuestSyncCoordinator(
                         }
                     }
                     check(sent.userId == account.localUserId && sent.baseRevision != null)
+                    if (sent.recordType == SavingsMapping.GOALS && sent.isDeleted) {
+                        val waiting = dao.pending(account.uid).any { it.recordType == SavingsMapping.CONTRIBUTIONS
+                            && it.state == "PENDING" && SyncMapping.decode(it.recordType, it.payload)["goalCloudId"] == sent.recordId }
+                        if (waiting) { retry = true; break }
+                    }
+                    if (sent.recordType == SavingsMapping.CONTRIBUTIONS) {
+                        val fields = SyncMapping.decode(sent.recordType, sent.payload)
+                        val goal = fields["goalCloudId"] as String
+                        val parent = dao.record(account.uid, SavingsMapping.GOALS, goal)
+                        check(parent?.isDeleted != true && dao.forRecord(account.uid, SavingsMapping.GOALS, goal)
+                            .none { it.state == "FAILED" || it.state == "CONFLICT" }) { "Review the savings goal before publishing its retained contribution." }
+                        if (parent == null || parent.revision == 0L) {
+                            if (dao.forRecord(account.uid, SavingsMapping.GOALS, goal).any { it.state == "PENDING" }) { retry = true; break }
+                            error("Review the savings goal before publishing its retained contribution.")
+                        }
+                        val original = fields["reversesBusinessId"] as String?
+                        if (original != null && (dao.record(account.uid, SavingsMapping.CONTRIBUTIONS, original)?.revision ?: 0) == 0L) {
+                            if (dao.forRecord(account.uid, SavingsMapping.CONTRIBUTIONS, original).any { it.state == "PENDING" }) { retry = true; break }
+                            error("Review the original contribution before publishing its retained reversal.")
+                        }
+                    }
                     if (sent.recordType == "expenses") {
                         val categoryId = SyncMapping.decode("expenses", sent.payload)["categoryId"] as String
                         val dependency = dao.record(account.uid, "categories", categoryId)
@@ -193,6 +217,7 @@ class PocketQuestSyncCoordinator(
             val server = requireNotNull(dao.record(account.uid, type, id))
             check(server.revision == reviewedRevision) { "The server version changed. Review it again." }
             check(!keepLocal || !server.isDeleted) { "Deleted records need a new ID; they cannot be restored." }
+            check(!keepLocal || !SavingsMapping.immutable(type)) { "Accepted contributions and earned evidence cannot be overwritten. Use the reviewed server record." }
             if (!keepLocal && type == "expenses") db.receiptJobDao().deselect(account.uid, id)
             if (!keepLocal) applyServer(server)
             dao.removeForReview(account.uid, type, id)

@@ -30,8 +30,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Install locked test dependencies
         run: npm ci
-      - name: Prepare synthetic debug client configuration
-        run: npm run firebase:demo
+      - name: Check shared Android Firebase client configuration
+        run: test -f app/google-services.json
       - name: Build, lint and test Android
         run: |
           chmod +x gradlew

@@ -133,7 +133,7 @@ for (const actor of [owner, other, null]) {
     const database = client(actor).firestore();
     // I checked both known future paths and deeper/unexpected paths, rather than a broad users wildcard.
     for (const path of [
-      `users/${owner}/savingsGoals/${expenseId}`, `users/${owner}/achievements/first-save`,
+      `users/${owner}/savingsGoals/${expenseId}/unmatched/row`, `users/${owner}/achievements/first-save`,
       `users/${owner}/expenses/${expenseId}/private/hidden`,
       `users/${owner}/receipts/${expenseId}`, `users/${owner}/unexpected/value`, 'unexpected/value',
     ]) {

@@ -118,5 +118,32 @@ object DatabaseMigrations {
                 PRIMARY KEY(uid, expenseCloudId, objectPath))""")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10)
+    val FROM_10_TO_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I added empty feature tables and retained the existing financial and sync rows (Google, 2026u).
+            db.execSQL("""CREATE TABLE savings_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId INTEGER NOT NULL,
+                cloudId TEXT NOT NULL, name TEXT NOT NULL, targetCents INTEGER NOT NULL,
+                targetDate TEXT, note TEXT, isDeleted INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(userId) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE RESTRICT)""")
+            db.execSQL("CREATE UNIQUE INDEX index_savings_goals_userId_cloudId ON savings_goals(userId, cloudId)")
+            db.execSQL("CREATE UNIQUE INDEX index_savings_goals_userId_id ON savings_goals(userId, id)")
+            db.execSQL("""CREATE TABLE savings_contributions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId INTEGER NOT NULL, goalId INTEGER NOT NULL,
+                businessId TEXT NOT NULL, kind TEXT NOT NULL, amountCents INTEGER NOT NULL,
+                effectiveDate TEXT NOT NULL, reversesBusinessId TEXT, note TEXT,
+                FOREIGN KEY(userId, goalId) REFERENCES savings_goals(userId, id) ON UPDATE NO ACTION ON DELETE RESTRICT)""")
+            db.execSQL("CREATE UNIQUE INDEX index_savings_contributions_userId_businessId ON savings_contributions(userId, businessId)")
+            db.execSQL("CREATE INDEX index_savings_contributions_userId_goalId ON savings_contributions(userId, goalId)")
+            db.execSQL("CREATE UNIQUE INDEX index_savings_contributions_userId_reversesBusinessId ON savings_contributions(userId, reversesBusinessId)")
+            db.execSQL("""CREATE TABLE earned_achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId INTEGER NOT NULL,
+                awardKey TEXT NOT NULL, badgeId TEXT NOT NULL, criteriaVersion INTEGER NOT NULL,
+                earnedAtEpochMillis INTEGER, earnedDate TEXT, earnedZoneId TEXT, evidenceRecordId TEXT NOT NULL,
+                FOREIGN KEY(userId) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE RESTRICT)""")
+            db.execSQL("CREATE UNIQUE INDEX index_earned_achievements_userId_awardKey ON earned_achievements(userId, awardKey)")
+            db.execSQL("CREATE INDEX index_earned_achievements_userId_badgeId ON earned_achievements(userId, badgeId)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11)
 }

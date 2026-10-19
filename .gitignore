@@ -23,8 +23,9 @@ Thumbs.db
 *.md
 docs/
 
-# Local Firebase client selection and emulator output
+# Shared Android client, local variant overrides and emulator output
 **/google-services.json
+!/app/google-services.json
 .firebase/
 *-debug.log
 *-debug.*.log

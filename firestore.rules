@@ -213,12 +213,122 @@ service cloud.firestore {
         && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'monthlyGoals');
       allow delete: if false;
     }
+    function businessId(id) { return id is string && id.matches('[A-Za-z0-9_:.-]{1,128}'); }
+    function featureMeta(data) {
+      return data.schemaVersion is int && data.schemaVersion == 1 && data.revision is int && data.revision > 0
+        && mutationId(data.lastMutationId) && data.updatedAt == request.time && data.isDeleted is bool
+        && (data.isDeleted ? data.deletedAt == request.time : data.deletedAt == null);
+    }
+    function optionalNote(note) { return note == null || (note is string && note.size() > 0 && note.size() <= 1000 && note.trim() == note); }
+    function validSavingsGoal(id, data) {
+      return mutationId(id) && data.keys().hasAll(['name', 'targetCents', 'targetDate', 'note', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['name', 'targetCents', 'targetDate', 'note', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100 && data.name.trim() == data.name
+        && data.targetCents is int && data.targetCents > 0
+        && (data.targetDate == null || (data.targetDate is string && validExpenseDate(data.targetDate)))
+        && optionalNote(data.note) && featureMeta(data);
+    }
+    match /users/{uid}/savingsGoals/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validSavingsGoal(id, request.resource.data) && request.resource.data.revision == 1
+        && matchingReceipt(uid, id, request.resource.data, 0, 'savingsGoals');
+      allow update: if isOwner(uid) && validSavingsGoal(id, request.resource.data) && !resource.data.isDeleted
+        && request.resource.data.revision == resource.data.revision + 1
+        && (!request.resource.data.isDeleted || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt']))
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'savingsGoals');
+      allow delete: if false;
+    }
+    function validContribution(id, data) {
+      return businessId(id)
+        && data.keys().hasAll(['goalCloudId', 'kind', 'amountCents', 'effectiveDate', 'reversesBusinessId', 'note', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['goalCloudId', 'kind', 'amountCents', 'effectiveDate', 'reversesBusinessId', 'note', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && mutationId(data.goalCloudId) && data.kind in ['OPENING', 'ADDITION', 'REVERSAL']
+        && (data.kind == 'OPENING' ? id == 'opening:' + data.goalCloudId : !id.matches('opening:.*'))
+        && data.amountCents is int && data.amountCents > 0
+        && data.effectiveDate is string && validExpenseDate(data.effectiveDate) && optionalNote(data.note)
+        && (data.kind == 'REVERSAL' ? businessId(data.reversesBusinessId) && data.reversesBusinessId != id : data.reversesBusinessId == null)
+        && featureMeta(data) && data.revision == 1 && !data.isDeleted;
+    }
+    function reversalPath(uid, id) { return /databases/$(database)/documents/users/$(uid)/savingsReversals/$(id); }
+    function balancePath(uid, id) { return /databases/$(database)/documents/users/$(uid)/savingsBalances/$(id); }
+    function validReversal(uid, id, data) {
+      let original = get(recordPath(uid, 'savingsContributions', data.reversesBusinessId)).data;
+      let guard = getAfter(reversalPath(uid, data.reversesBusinessId)).data;
+      return original.goalCloudId == data.goalCloudId && original.kind != 'REVERSAL' && original.amountCents == data.amountCents
+        && !exists(reversalPath(uid, data.reversesBusinessId)) && guard.contributionId == id
+        && guard.goalCloudId == data.goalCloudId && guard.lastMutationId == data.lastMutationId;
+    }
+    function contributionBalance(uid, id, data) {
+      let balance = getAfter(balancePath(uid, data.goalCloudId)).data;
+      return balance.lastContributionId == id && balance.lastMutationId == data.lastMutationId;
+    }
+    match /users/{uid}/savingsContributions/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validContribution(id, request.resource.data)
+        && getAfter(recordPath(uid, 'savingsGoals', request.resource.data.goalCloudId)).data.isDeleted == false
+        && matchingReceipt(uid, id, request.resource.data, 0, 'savingsContributions')
+        && contributionBalance(uid, id, request.resource.data)
+        && (request.resource.data.kind != 'REVERSAL' || validReversal(uid, id, request.resource.data));
+      allow update, delete: if false;
+    }
+    function validBalance(uid, goal, data, before) {
+      let path = recordPath(uid, 'savingsContributions', data.lastContributionId);
+      let event = getAfter(path).data;
+      // I paired each new event with its checked balance change (Google, 2026z).
+      return data.keys().hasAll(['schemaVersion', 'balanceCents', 'lastContributionId', 'lastMutationId', 'updatedAt'])
+        && data.keys().hasOnly(['schemaVersion', 'balanceCents', 'lastContributionId', 'lastMutationId', 'updatedAt'])
+        && data.schemaVersion is int && data.schemaVersion == 1 && data.balanceCents is int && data.balanceCents >= 0 && data.updatedAt == request.time
+        && businessId(data.lastContributionId) && mutationId(data.lastMutationId)
+        && !exists(path) && event.goalCloudId == goal && event.lastMutationId == data.lastMutationId
+        && (event.kind == 'REVERSAL'
+          ? before >= event.amountCents && data.balanceCents == before - event.amountCents
+          : event.amountCents <= 9223372036854775807 - before && data.balanceCents == before + event.amountCents);
+    }
+    match /users/{uid}/savingsBalances/{goal} {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid) && validBalance(uid, goal, request.resource.data, 0);
+      allow update: if isOwner(uid) && validBalance(uid, goal, request.resource.data, resource.data.balanceCents);
+      allow list, delete: if false;
+    }
+    match /users/{uid}/savingsReversals/{original} {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid) && businessId(original)
+        && request.resource.data.keys().hasAll(['schemaVersion', 'goalCloudId', 'contributionId', 'lastMutationId', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'goalCloudId', 'contributionId', 'lastMutationId', 'createdAt'])
+        && request.resource.data.schemaVersion is int && request.resource.data.schemaVersion == 1 && request.resource.data.createdAt == request.time
+        && !exists(recordPath(uid, 'savingsContributions', request.resource.data.contributionId))
+        && getAfter(recordPath(uid, 'savingsContributions', request.resource.data.contributionId)).data.reversesBusinessId == original
+        && getAfter(recordPath(uid, 'savingsContributions', request.resource.data.contributionId)).data.goalCloudId == request.resource.data.goalCloudId
+        && getAfter(recordPath(uid, 'savingsContributions', request.resource.data.contributionId)).data.lastMutationId == request.resource.data.lastMutationId;
+      allow list, update, delete: if false;
+    }
+    function validAward(id, data) {
+      // I stored owner-supplied evidence; these rules do not evaluate whether a badge was earned.
+      return businessId(id)
+        && data.keys().hasAll(['badgeId', 'criteriaVersion', 'earnedAtEpochMillis', 'earnedDate', 'earnedZoneId', 'evidenceRecordId', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['badgeId', 'criteriaVersion', 'earnedAtEpochMillis', 'earnedDate', 'earnedZoneId', 'evidenceRecordId', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && businessId(data.badgeId) && businessId(data.evidenceRecordId) && data.criteriaVersion is int && data.criteriaVersion > 0 && data.criteriaVersion <= 2147483647
+        && (data.earnedAtEpochMillis == null || (data.earnedAtEpochMillis is int && data.earnedAtEpochMillis >= 0))
+        && (data.earnedDate == null || (data.earnedDate is string && validExpenseDate(data.earnedDate) && data.earnedZoneId != null))
+        && (data.earnedAtEpochMillis != null || data.earnedDate != null)
+        && (data.earnedZoneId == null || (data.earnedZoneId is string && data.earnedZoneId.size() > 0 && data.earnedZoneId.size() <= 100))
+        && featureMeta(data) && data.revision == 1 && !data.isDeleted;
+    }
+    match /users/{uid}/earnedAchievements/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validAward(id, request.resource.data)
+        && matchingReceipt(uid, id, request.resource.data, 0, 'earnedAchievements');
+      allow update, delete: if false;
+    }
     match /users/{uid}/mutations/{id} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && mutationId(id)
         && request.resource.data.keys().hasAll(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
         && request.resource.data.keys().hasOnly(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
-        && request.resource.data.recordType in ['categories', 'expenses', 'monthlyGoals'] && stableId(request.resource.data.recordId)
+        && request.resource.data.recordType in ['categories', 'expenses', 'monthlyGoals', 'savingsGoals', 'savingsContributions', 'earnedAchievements']
+        && (request.resource.data.recordType in ['savingsGoals', 'savingsContributions', 'earnedAchievements']
+          ? businessId(request.resource.data.recordId) : stableId(request.resource.data.recordId))
         && request.resource.data.baseRevision is int && request.resource.data.baseRevision >= 0
         && request.resource.data.revision is int && request.resource.data.revision == request.resource.data.baseRevision + 1
         && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('[a-f0-9]{64}')

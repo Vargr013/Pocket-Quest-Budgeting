@@ -104,6 +104,7 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
 
     suspend fun finishRecordImport(account: SyncAccount) = sync.writeForOwner(account) {
         if (!MonthlyGoalSync(db, sync).importReady(account)) return@writeForOwner
+        if (!SavingsSync(db, sync).importReady(account)) return@writeForOwner
         if (db.syncDao().pending(account.uid).any { it.recordType in listOf("categories", "expenses", "monthlyGoals") }) return@writeForOwner
         val categoriesReady = db.categoryDao().getAllForUser(account.localUserId).all {
             it.cloudId != null && (db.syncDao().record(account.uid, "categories", it.cloudId)?.revision ?: 0) > 0

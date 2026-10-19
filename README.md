@@ -14,7 +14,7 @@ Android budgeting app (Jetpack Compose). Track expenses by category, attach opti
 
 ## Run the app
 
-Complete the [Firebase client configuration and test setup](docs/FIREBASE_SETUP.md) before Gradle sync. The app uses Firebase Authentication for username/password accounts and Room v5 for financial data. A synthetic client from `npm run firebase:demo` supports builds/CI only; normal app login needs a configured real project. Keep the selected real client local and do not mix it with a debug demo override.
+Complete the [Firebase setup](#firebase-setup) below before building. The app uses Firebase Authentication for username/password accounts and Room for local data.
 
 1. Open this folder in Android Studio (**File → Open**).
 2. Wait for Gradle sync to finish.
@@ -22,6 +22,41 @@ Complete the [Firebase client configuration and test setup](docs/FIREBASE_SETUP.
 4. Click **Run**.
 
 First launch: **Register** a username and password; successful registration signs you in. Returning users choose **Login**. Usernames are case-sensitive and immutable (1–32 UTF-8 bytes after trimming), and these username accounts have no email password-reset option.
+
+## Firebase setup
+
+The repository includes `app/google-services.json` for the team's `pocket-quest-c7127` Android app (`com.example.pocketquestbudgeting`). A fresh checkout can build with this shared client without downloading or copying a separate file.
+
+### Team app with normal Firebase login
+
+Build from the repository root:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+```
+
+If an older checkout still reports a missing file, pull the shared configuration change. The file belongs at `app/google-services.json`, for example `D:\GitHub\Pocket-Quest-Budgeting\app\google-services.json`. If the client needs to be refreshed, download the matching Android file from **Firebase Console → Project settings → Your apps → Android**.
+
+Firebase client configuration contains public project/app identifiers. Access to app data is enforced by Firebase Authentication and Security Rules. This file is different from an administrator/service-account key, which must stay private. See Firebase's [configuration documentation](https://firebase.google.com/docs/projects/learn-more#config-files-objects) and [API-key guidance](https://firebase.google.com/docs/projects/api-keys).
+
+An earlier `app/src/debug/google-services.json` demo file can override the shared client. Remove only that known demo override when returning to the team project. Variant overrides remain ignored by Git.
+
+### Build-only or local emulator work
+
+In a workspace intentionally configured without the shared client, the synthetic debug configuration can still be prepared explicitly. This uses Gradle and does not require Node.js:
+
+```powershell
+.\gradlew.bat :app:prepareFirebaseDemo
+.\gradlew.bat :app:assembleDebug
+```
+
+The task creates ignored `app/src/debug/google-services.json` for `demo-pocket-quest`. It refuses to replace or override the included shared client or another selected configuration. It does not enable normal cloud login, route the app's login screen to local emulators, or configure release builds. `npm run firebase:demo` is the equivalent Node-based preparation command for configuration-free workspaces.
+
+CI builds use the shared Android client. Emulator test scripts explicitly select the separate `demo-pocket-quest` project; they do not require replacing the shared file or connecting to the live backend.
+
+Firebase's [Android setup guide](https://firebase.google.com/docs/android/setup) explains where to download the client file and why it belongs in the app module. Build checks with the synthetic client are separate from a real Firebase login or live-service test.
+
+## Account behaviour
 
 After cloud login, existing unlinked local accounts require an explicit linking choice and their old local password. Linking preserves the original local ID, records and receipts. Passwordless legacy accounts keep their data but require a separate recovery decision. You can instead choose a separate empty local account; matching names never merge data. See the [identity and linking contract](docs/FIREBASE_INTEGRATION.md).
 
