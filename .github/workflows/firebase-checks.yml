@@ -25,6 +25,8 @@ jobs:
           node-version: '22.14.0'
           cache: npm
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Install the checkout's compile SDK
         run: sdkmanager "platforms;android-37.0"
       - uses: gradle/actions/setup-gradle@v4
