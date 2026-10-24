@@ -53,6 +53,7 @@ import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.CategoryMonthProgress
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.currentMonthBounds
+import com.example.pocketquestbudgeting.data.markActiveToday
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 
@@ -99,6 +100,7 @@ fun DashboardScreen(
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
         LaunchedEffect(userId, reload) {
+            markActiveToday(context, userId)
             categoriesLoading = true
             try {
                 val db = DatabaseProvider.get(context)

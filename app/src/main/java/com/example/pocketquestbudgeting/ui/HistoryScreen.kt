@@ -52,6 +52,7 @@ import androidx.room.withTransaction
 import com.example.pocketquestbudgeting.data.CategoryEntity
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
+import com.example.pocketquestbudgeting.data.markActiveToday
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
@@ -112,6 +113,8 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
     var error by remember(filter, startDate, endDate, categoryId, search, reload) {
         mutableStateOf<String?>(null)
     }
+
+    LaunchedEffect(userId, reload) { markActiveToday(context, userId) }
 
     LaunchedEffect(userId, filter, startDate, endDate, categoryId, search, reload) {
         val requestedFilter = filter

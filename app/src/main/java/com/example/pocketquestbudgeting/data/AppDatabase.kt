@@ -7,6 +7,9 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [UserEntity::class, CategoryEntity::class, ExpenseEntity::class, BudgetGoalEntity::class, SyncRecord::class, SyncOperation::class, ReceiptJob::class, ReceiptCache::class, SavingsGoalEntity::class, SavingsContributionEntity::class, EarnedAchievementEntity::class],
     version = 11,
+    entities = [UserEntity::class, CategoryEntity::class, ExpenseEntity::class, BudgetGoalEntity::class, SyncRecord::class, SyncOperation::class,
+        EarnedAchievementEntity::class, ActivityDayEntity::class, CustomWorthItemEntity::class],
+    version = 10,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -18,4 +21,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun receiptJobDao(): ReceiptJobDao
     abstract fun savingsDao(): SavingsDao
     abstract fun earnedAchievementDao(): EarnedAchievementDao
+    abstract fun gamificationDao(): GamificationDao
 }

@@ -146,4 +146,17 @@ object DatabaseMigrations {
         }
     }
     val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11)
+            // I added local-only gamification tables without touching financial rows (Google, 2026u).
+            db.execSQL("""CREATE TABLE IF NOT EXISTS earned_achievements (
+                userId INTEGER NOT NULL, achievementId TEXT NOT NULL, earnedAtMillis INTEGER NOT NULL,
+                PRIMARY KEY(userId, achievementId))""")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS activity_days (
+                userId INTEGER NOT NULL, date TEXT NOT NULL, PRIMARY KEY(userId, date))""")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS custom_worth_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId INTEGER NOT NULL,
+                name TEXT NOT NULL, valueCents INTEGER NOT NULL, category TEXT NOT NULL)""")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_custom_worth_items_userId ON custom_worth_items(userId)")
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10)
 }

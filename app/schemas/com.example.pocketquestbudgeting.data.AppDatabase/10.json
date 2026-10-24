@@ -538,6 +538,18 @@
           {
             "fieldPath": "jobId",
             "columnName": "jobId",
+        "tableName": "earned_achievements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `achievementId` TEXT NOT NULL, `earnedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`userId`, `achievementId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "achievementId",
+            "columnName": "achievementId",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -545,6 +557,54 @@
             "fieldPath": "uid",
             "columnName": "uid",
             "affinity": "TEXT",
+            "notNull": true
+            "fieldPath": "earnedAtMillis",
+            "columnName": "earnedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId",
+            "achievementId"
+          ]
+        }
+      },
+      {
+        "tableName": "activity_days",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `date` TEXT NOT NULL, PRIMARY KEY(`userId`, `date`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId",
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "custom_worth_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` INTEGER NOT NULL, `name` TEXT NOT NULL, `valueCents` INTEGER NOT NULL, `category` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -556,6 +616,8 @@
           {
             "fieldPath": "expenseCloudId",
             "columnName": "expenseCloudId",
+            "fieldPath": "name",
+            "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -635,6 +697,22 @@
           "autoGenerate": false,
           "columnNames": [
             "jobId"
+            "fieldPath": "valueCents",
+            "columnName": "valueCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
           ]
         },
         "indices": [
@@ -709,6 +787,15 @@
             "objectPath"
           ]
         }
+            "name": "index_custom_worth_items_userId",
+            "unique": false,
+            "columnNames": [
+              "userId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_custom_worth_items_userId` ON `${TABLE_NAME}` (`userId`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
