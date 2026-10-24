@@ -116,6 +116,24 @@ class SavingsFirebaseTest {
         try { block(); fail("Expected rejected operation") } catch (_: IllegalStateException) { } catch (_: IllegalArgumentException) { }
     }
 
+    @Test fun evaluatedGamificationBadgesReachTheOtherDeviceThroughExistingAwardRules() = runBlocking {
+        val owner = first.account.localUserId
+        val category = first.db.categoryDao().insert(CategoryEntity(userId = owner, name = "Synthetic food"))
+        first.db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 50_00,
+            date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+        for (day in listOf("2026-10-18", "2026-10-19", "2026-10-20")) first.db.gamificationDao().markActiveDay(owner, day)
+        val firstReport = AchievementLoader.load(first.db, owner, today = "2026-10-20", nowMillis = 42L)
+        assertEquals(setOf("first_expense", "streak_3"), firstReport.newlyEarned.toSet())
+        first.savings.importExisting(first.account)
+        first.flush()
+        assertTrue(first.db.syncDao().pending(first.account.uid).isEmpty())
+        second.refresh()
+        val secondReport = AchievementLoader.load(second.db, second.account.localUserId, today = "2026-10-20", nowMillis = 500L)
+        assertTrue(secondReport.newlyEarned.isEmpty())
+        assertEquals(setOf("first_expense", "streak_3"), secondReport.progress.filter { it.earned }.map { it.definition.id }.toSet())
+        assertTrue(second.db.earnedAchievementDao().getForUser(second.account.localUserId).all { it.earnedAtEpochMillis == 42L })
+    }
+
     @Test fun twoNamedClientsUseStableGoalIdentityWithDifferentLocalIdsAndExactOpening() = runBlocking {
         create(9007199254740993L)
         repeat(2) { second.refresh() }

@@ -37,21 +37,22 @@ class GamificationMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(10, db.openHelper.writableDatabase.version)
+            assertEquals(12, db.openHelper.writableDatabase.version)
             assertEquals(150000L, db.expenseDao().getForUserById(41, 71)?.amount)
             assertEquals("2026-09", db.budgetGoalDao().getByMonthKey(41, "2026-09")?.monthKey)
 
             val gamification = db.gamificationDao()
-            assertTrue(gamification.getEarned(41).isEmpty())
+            val awards = db.earnedAchievementDao()
+            assertTrue(awards.getForUser(41).isEmpty())
             gamification.markActiveDay(41, "2026-10-20")
             gamification.markActiveDay(41, "2026-10-20")
             assertEquals(listOf("2026-10-20"), gamification.getActiveDays(41))
 
             val report = AchievementLoader.load(db, 41, today = "2026-10-20", nowMillis = 5L)
             assertEquals(500_00L, report.totalSavedCents)
-            assertTrue(gamification.getEarned(41).any { it.achievementId == "worth_coffee" && it.earnedAtMillis == 5L })
+            assertTrue(awards.getForUser(41).any { it.badgeId == "worth_coffee" && it.earnedAtEpochMillis == 5L })
             AchievementLoader.load(db, 41, today = "2026-10-20", nowMillis = 9L)
-            assertEquals(5L, gamification.getEarned(41).first { it.achievementId == "worth_coffee" }.earnedAtMillis)
+            assertEquals(5L, awards.getForUser(41).first { it.badgeId == "worth_coffee" }.earnedAtEpochMillis)
 
             val itemId = gamification.insertCustomItem(CustomWorthItemEntity(userId = 41, name = "Bicycle", valueCents = 4_500_00, category = "CUSTOM"))
             assertEquals("Bicycle", gamification.getCustomItems(41).single().name)

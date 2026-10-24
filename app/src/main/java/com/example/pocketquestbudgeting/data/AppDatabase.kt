@@ -5,11 +5,10 @@ import androidx.room.RoomDatabase
 
 // I registered the entities and DAOs through Room (Google, 2026g).
 @Database(
-    entities = [UserEntity::class, CategoryEntity::class, ExpenseEntity::class, BudgetGoalEntity::class, SyncRecord::class, SyncOperation::class, ReceiptJob::class, ReceiptCache::class, SavingsGoalEntity::class, SavingsContributionEntity::class, EarnedAchievementEntity::class],
-    version = 11,
     entities = [UserEntity::class, CategoryEntity::class, ExpenseEntity::class, BudgetGoalEntity::class, SyncRecord::class, SyncOperation::class,
+        ReceiptJob::class, ReceiptCache::class, SavingsGoalEntity::class, SavingsContributionEntity::class,
         EarnedAchievementEntity::class, ActivityDayEntity::class, CustomWorthItemEntity::class],
-    version = 10,
+    version = 12,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

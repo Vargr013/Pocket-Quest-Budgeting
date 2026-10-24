@@ -41,7 +41,7 @@ class MonthlyGoalMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(11, db.openHelper.writableDatabase.version)
+            assertEquals(12, db.openHelper.writableDatabase.version)
             val all = db.budgetGoalDao().getForUser(41)
             assertEquals(setOf(81L, 82L, 83L), all.map { it.id }.toSet())
             assertTrue(all.all { it.monthKey == null && !it.isDeleted })

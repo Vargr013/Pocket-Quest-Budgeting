@@ -142,7 +142,8 @@ class AchievementsTest {
     }
 
     @Test fun storedBadgesStayedEarnedWithTheirFirstDate() {
-        val stored = listOf(EarnedAchievementEntity(1, "first_expense", 42L))
+        val stored = listOf(EarnedAchievementEntity(userId = 1, awardKey = "gamification:v1:first_expense",
+            badgeId = "first_expense", criteriaVersion = 1, earnedAtEpochMillis = 42L, evidenceRecordId = "synthetic"))
         val report = evaluate(stored = stored)
         assertTrue(report.badge("first_expense").earned)
         assertEquals(42L, report.badge("first_expense").earnedAtMillis)
@@ -165,5 +166,19 @@ class AchievementsTest {
         assertEquals("budget_3", Achievements.nextUnlock(report.progress) { it.group == AchievementGroup.MONTHLY_BUDGET }?.definition?.id)
         val allEarned = report.progress.map { it.copy(earned = true) }
         assertNull(Achievements.nextUnlock(allEarned))
+    }
+
+    @Test fun existingSharedAwardsKeepTheirEvidenceAndDoNotGetAwardedAgain() {
+        val first = EarnedAchievementEntity(userId = 1, awardKey = "existing:first", badgeId = "first_expense",
+            criteriaVersion = 1, earnedAtEpochMillis = 42L, evidenceRecordId = "existing-evidence")
+        val report = evaluate(stored = listOf(first, first.copy(awardKey = "later:first", earnedAtEpochMillis = 100L)))
+        assertEquals(42L, report.badge("first_expense").earnedAtMillis)
+        assertTrue(report.newlyEarned.isEmpty())
+
+        val dateOnly = first.copy(earnedAtEpochMillis = null, earnedDate = "2026-09-01", earnedZoneId = "Africa/Johannesburg")
+        val dated = evaluate(stored = listOf(dateOnly))
+        assertTrue(dated.badge("first_expense").earned)
+        assertNull(dated.badge("first_expense").earnedAtMillis)
+        assertTrue(dated.newlyEarned.isEmpty())
     }
 }

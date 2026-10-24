@@ -7,13 +7,6 @@ import androidx.room.Query
 
 @Dao
 interface GamificationDao {
-    // I ignored conflicts so a badge keeps the date it was first earned.
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertEarned(earned: List<EarnedAchievementEntity>)
-
-    @Query("SELECT * FROM earned_achievements WHERE userId = :userId ORDER BY earnedAtMillis, achievementId")
-    suspend fun getEarned(userId: Long): List<EarnedAchievementEntity>
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertActiveDay(day: ActivityDayEntity)
 

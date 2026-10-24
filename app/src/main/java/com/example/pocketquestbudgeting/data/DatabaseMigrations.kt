@@ -145,11 +145,9 @@ object DatabaseMigrations {
             db.execSQL("CREATE INDEX index_earned_achievements_userId_badgeId ON earned_achievements(userId, badgeId)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11)
-            // I added local-only gamification tables without touching financial rows (Google, 2026u).
-            db.execSQL("""CREATE TABLE IF NOT EXISTS earned_achievements (
-                userId INTEGER NOT NULL, achievementId TEXT NOT NULL, earnedAtMillis INTEGER NOT NULL,
-                PRIMARY KEY(userId, achievementId))""")
+    val FROM_11_TO_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I added the local comparison and activity tables, keeping the existing award and financial rows.
             db.execSQL("""CREATE TABLE IF NOT EXISTS activity_days (
                 userId INTEGER NOT NULL, date TEXT NOT NULL, PRIMARY KEY(userId, date))""")
             db.execSQL("""CREATE TABLE IF NOT EXISTS custom_worth_items (
@@ -158,5 +156,32 @@ object DatabaseMigrations {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_custom_worth_items_userId ON custom_worth_items(userId)")
         }
     }
-    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7, FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10)
+    val FROM_10_TO_12 = object : Migration(10, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Kian's standalone v10 used the number already assigned to receipts on main.
+            val localBadges = db.query("PRAGMA table_info(earned_achievements)").use { columns ->
+                var found = false
+                while (columns.moveToNext()) {
+                    if (columns.getString(columns.getColumnIndexOrThrow("name")) == "achievementId") found = true
+                }
+                found
+            }
+            if (localBadges) {
+                db.execSQL("ALTER TABLE earned_achievements RENAME TO gamification_awards_v10")
+                FROM_9_TO_10.migrate(db)
+            }
+            FROM_10_TO_11.migrate(db)
+            if (localBadges) {
+                // I copied the original badge IDs and first-earned instants into the shared model.
+                db.execSQL("""INSERT INTO earned_achievements
+                    (userId, awardKey, badgeId, criteriaVersion, earnedAtEpochMillis, evidenceRecordId)
+                    SELECT userId, 'gamification:v1:' || achievementId, achievementId, 1,
+                        earnedAtMillis, 'gamification:v1:' || achievementId FROM gamification_awards_v10""")
+                db.execSQL("DROP TABLE gamification_awards_v10")
+            }
+            FROM_11_TO_12.migrate(db)
+        }
+    }
+    val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7,
+        FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11, FROM_11_TO_12, FROM_10_TO_12)
 }

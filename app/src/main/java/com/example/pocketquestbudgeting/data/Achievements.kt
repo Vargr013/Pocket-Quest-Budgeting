@@ -117,7 +117,9 @@ object Achievements {
         val streak = currentStreak(input.activeDays, input.today)
         val longest = longestStreak(input.activeDays)
         val totalSaved = finished.fold(0L) { total, month -> plusCapped(total, month.savedCents) }
-        val storedById = stored.associateBy { it.achievementId }
+        val storedById = stored.groupBy { it.badgeId }.mapValues { (_, awards) ->
+            awards.minBy { it.earnedAtEpochMillis ?: Long.MAX_VALUE }
+        }
 
         val progress = definitions.map { definition ->
             val (current, reached) = when (definition.metric) {
@@ -137,7 +139,7 @@ object Achievements {
                 definition = definition,
                 current = if (earned) definition.target else minOf(current, definition.target),
                 earned = earned,
-                earnedAtMillis = saved?.earnedAtMillis ?: if (earned) nowMillis else null,
+                earnedAtMillis = if (saved != null) saved.earnedAtEpochMillis else if (earned) nowMillis else null,
             )
         }
         return AchievementReport(

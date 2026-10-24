@@ -54,7 +54,6 @@ import com.example.pocketquestbudgeting.data.AchievementLoader
 import com.example.pocketquestbudgeting.data.AchievementProgress
 import com.example.pocketquestbudgeting.data.AchievementReport
 import com.example.pocketquestbudgeting.data.Achievements
-import com.example.pocketquestbudgeting.data.DatabaseProvider
 import kotlinx.coroutines.CancellationException
 
 private val ScreenBg = Color(0xFFF4F7F6)
@@ -79,7 +78,7 @@ fun AchievementsScreen(userId: Long, onBack: () -> Unit) {
     if (!inspecting) {
         LaunchedEffect(userId) {
             try {
-                report = AchievementLoader.load(DatabaseProvider.get(context), userId)
+                report = AchievementLoader.load(context, userId)
                 error = null
             } catch (cancelled: CancellationException) {
                 throw cancelled

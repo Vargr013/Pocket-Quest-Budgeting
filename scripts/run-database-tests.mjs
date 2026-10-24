@@ -22,6 +22,7 @@ if (inspect(['-s', serial, 'shell', 'getprop', 'sys.boot_completed']).trim() !==
 
 // I selected only local database fixtures; these tests do not call Firebase or open the app database.
 const classes = ['SavingsPersistenceTest', 'EarnedAchievementPersistenceTest', 'SavingsMigrationTest',
+  'GamificationMigrationTest', 'GamificationUpgradeTest', 'GamificationIntegrationTest',
   'AccountMigrationTest', 'SyncMigrationTest', 'CategoryMigrationTest', 'ExpenseMigrationTest',
   'MonthlyGoalMigrationTest', 'ReceiptMigrationTest', 'AccountSessionTest', 'SyncFoundationTest',
   'CategorySyncTest', 'ExpenseSyncTest', 'MonthlyGoalSyncTest', 'ReceiptSyncTest'];

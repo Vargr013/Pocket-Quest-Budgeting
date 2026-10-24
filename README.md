@@ -89,7 +89,11 @@ First authentication/linking needs internet. Remember Me permits restoration of 
 
 Data lives in the local Room database `pocket-quest.db`. Photos are files under the app’s private storage; expenses store the file path.
 
-Categories, expenses and monthly goals have Room/Firestore sync. Savings goals, immutable contributions and supplied achievement evidence also have persistence and sync adapters. The savings action buttons and fixed achievement/savings examples still need the feature owner's screen integration and earning rules. These screens must not be treated as completed extra features yet. The What It's Worth comparisons and some dashboard expense examples are also fixed content.
+Categories, expenses and monthly goals have Room/Firestore sync. Savings goals, immutable contributions and achievement evidence also have persistence and sync adapters. The savings action buttons and savings examples still need the feature owner's screen integration.
+
+Achievements calculate badges from saved expenses, budgets, category limits and activity days. Earned badges use the existing award storage and sync path. What It's Worth compares unused budgets with estimated catalogue prices or custom items; its "Total saved" is the unused budget from completed months with logged expenses, rather than savings-goal contributions. Activity days, custom items and comparison preferences stay on the device. Historical category results use the current category limits.
+
+Room version 12 retains the existing financial, receipt, savings and award tables and adds activity days and custom worth items. Forward migrations cover main's versions 10/11 and the standalone gamification version 10, retaining its original badges, activity days and custom items.
 
 Android account/database backup is excluded so a copied session is not treated as a first login on another device. Keep existing data when checking migrations or offline recovery; do not clear app storage to hide a database mismatch.
 
@@ -128,7 +132,7 @@ For feature integration, use the existing adapters with a captured `SyncAccount`
 
 Keep Room reads scoped to the captured local user. Savings edit/remove calls take the reviewed goal; stale drafts must be reopened. Saved balances are derived from contributions, not set as a separate field. A positive opening uses `opening:<goal UUID>`; zero creates no event. A full reversal can be recorded once and keeps the original history.
 
-Achievement evidence is owner-supplied. Neither these adapters nor the deployed rules provide a trusted automatic badge evaluator. The feature owner must define and connect real earning criteria before presenting badges as earned.
+Achievement evidence is owner-supplied. `AchievementLoader` evaluates the app's earning criteria and records each newly earned badge once, using a stable `gamification:v1:<badge ID>` award key. Existing awards and their supplied evidence are retained. The deployed rules validate ownership and record shape; they do not independently verify the earning criteria.
 
 ## Receipt and service status
 

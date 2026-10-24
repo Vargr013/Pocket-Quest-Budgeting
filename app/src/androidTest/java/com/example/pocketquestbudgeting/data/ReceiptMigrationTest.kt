@@ -41,7 +41,7 @@ class ReceiptMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(11, db.openHelper.writableDatabase.version)
+            assertEquals(12, db.openHelper.writableDatabase.version)
             assertTrue(db.receiptJobDao().jobs("fixture-owner").isEmpty())
             assertEquals("FROZEN", db.syncDao().pending("fixture-owner").single().receiptMode)
             val all = db.budgetGoalDao().getForUser(41)

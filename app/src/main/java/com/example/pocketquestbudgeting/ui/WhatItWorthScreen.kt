@@ -104,7 +104,7 @@ fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Un
         LaunchedEffect(userId, reload) {
             try {
                 val db = DatabaseProvider.get(context)
-                report = AchievementLoader.load(db, userId)
+                report = AchievementLoader.load(context, userId)
                 customItems = db.gamificationDao().getCustomItems(userId)
                 error = null
             } catch (cancelled: CancellationException) {

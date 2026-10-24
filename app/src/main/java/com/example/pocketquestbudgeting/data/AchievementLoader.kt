@@ -21,6 +21,16 @@ suspend fun markActiveToday(context: Context, userId: Long) {
 }
 
 object AchievementLoader {
+    suspend fun load(context: Context, userId: Long): AchievementReport {
+        val report = load(DatabaseProvider.get(context), userId)
+        if (report.newlyEarned.isNotEmpty()) {
+            AccountSessions.get(context).state.value.account?.takeIf { it.localUserId == userId }?.let {
+                SyncWork.scheduleRetry(context, it)
+            }
+        }
+        return report
+    }
+
     // I evaluated and saved new badges in one transaction so a badge is stored once with its first date (Google, 2026j).
     suspend fun load(
         db: AppDatabase,
@@ -36,9 +46,14 @@ object AchievementLoader {
             activeDays = gamification.getActiveDays(userId),
             today = today,
         )
-        val report = Achievements.evaluate(input, gamification.getEarned(userId), nowMillis)
-        if (report.newlyEarned.isNotEmpty()) {
-            gamification.insertEarned(report.newlyEarned.map { EarnedAchievementEntity(userId, it, nowMillis) })
+        val awards = db.earnedAchievementDao()
+        val report = Achievements.evaluate(input, awards.getForUser(userId), nowMillis)
+        for (badgeId in report.newlyEarned) {
+            // I reused the durable award identity so normal savings sync can publish each badge once.
+            awards.recordEarned(EarnedAchievementEntity(
+                userId = userId, awardKey = "gamification:v1:$badgeId", badgeId = badgeId, criteriaVersion = 1,
+                earnedAtEpochMillis = nowMillis, evidenceRecordId = "gamification:v1:$badgeId",
+            ))
         }
         report
     }

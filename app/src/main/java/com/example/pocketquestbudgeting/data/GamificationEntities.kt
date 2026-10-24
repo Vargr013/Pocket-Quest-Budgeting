@@ -4,14 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-// I kept gamification rows on this device only; they are not part of cloud sync.
-@Entity(tableName = "earned_achievements", primaryKeys = ["userId", "achievementId"])
-data class EarnedAchievementEntity(
-    val userId: Long,
-    val achievementId: String,
-    val earnedAtMillis: Long,
-)
-
+// Activity days and custom comparisons stay on this device. Badges use the shared earned-achievement model.
 // A row means the user logged or reviewed expenses on that YYYY-MM-DD date.
 @Entity(tableName = "activity_days", primaryKeys = ["userId", "date"])
 data class ActivityDayEntity(
