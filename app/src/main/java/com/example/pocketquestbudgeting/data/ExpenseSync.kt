@@ -47,6 +47,7 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
             ExpenseMapping.fields(saved, requireNotNull(mappedCategory.cloudId))) {
             if (old == null) expenses.insert(saved) else check(expenses.updateSynced(saved) == 1)
         }
+        db.gamificationDao().markActiveDay(account.localUserId, todayIsoDate())
         1
     }
 

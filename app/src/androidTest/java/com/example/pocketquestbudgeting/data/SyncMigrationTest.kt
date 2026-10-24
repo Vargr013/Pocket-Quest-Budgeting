@@ -37,7 +37,7 @@ class SyncMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(9, db.openHelper.writableDatabase.version)
+            assertEquals(10, db.openHelper.writableDatabase.version)
             assertEquals("fixture-owner", db.userDao().getById(41)?.firebaseUid)
             assertTrue(requireNotNull(db.userDao().getById(41)).importPending)
             assertTrue(requireNotNull(db.userDao().getById(41)).categoriesInitialized)

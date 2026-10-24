@@ -77,10 +77,14 @@ private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modi
             )
         }
         composable("achievements") {
-            AchievementsScreen(onBack = { navController.popBackStack() })
+            AchievementsScreen(userId = userId, onBack = { navController.popBackStack() })
         }
         composable("what_it_worth") {
-            WhatItWorthScreen(onBack = { navController.popBackStack() })
+            WhatItWorthScreen(
+                userId = userId,
+                onBack = { navController.popBackStack() },
+                onAchievements = { navController.navigate("achievements") },
+            )
         }
         composable("daily_spend") {
             DailySpendingGraphScreen(userId = userId, onBack = { navController.popBackStack() })
