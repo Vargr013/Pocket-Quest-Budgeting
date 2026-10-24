@@ -32,7 +32,8 @@ fun MenuScreen(onBack: () -> Unit,
                onCategorySpend: () -> Unit,
                onAddSavingGoal: () -> Unit,
                onRemoveSavingGoal: () -> Unit,
-               onLogout: () -> Unit,) {
+               onLogout: () -> Unit,
+               onUpdateSavingGoal: () -> Unit = {},) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -75,6 +76,9 @@ fun MenuScreen(onBack: () -> Unit,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Add saving goal")
+        }
+        Button(onClick = onUpdateSavingGoal, modifier = Modifier.fillMaxWidth()) {
+            Text("Update saving goal")
         }
         Button(
             onClick = onRemoveSavingGoal,

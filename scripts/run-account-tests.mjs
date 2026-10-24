@@ -24,6 +24,7 @@ const devices = adbText(['devices']).split(/\r?\n/).filter(line => /\tdevice\s*$
 if (devices.length !== 1 || devices[0] !== serial) throw new Error('Leave only the dedicated test emulator connected; Gradle can target every connected device.');
 const avd = adbText(['-s', serial, 'emu', 'avd', 'name']).split(/\r?\n/)[0].trim();
 if (!avd.startsWith('PocketQuest_Account_Tests')) throw new Error('Refused a personal/presentation emulator. Use an AVD named PocketQuest_Account_Tests.');
+if (adbText(['-s', serial, 'shell', 'getprop', 'sys.boot_completed']).trim() !== '1') throw new Error('Wait for the test AVD to boot.');
 
 // I kept account tests on a named demo Firebase app; the selected live client is never used.
 // I left APKs installed too, so the runner cannot clear a previously installed test database.
@@ -46,6 +47,11 @@ if (process.env.POCKET_SAVINGS_TESTS === '1') {
   if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Savings tests require Firestore.');
   args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.SavingsFirebaseTest,com.example.pocketquestbudgeting.data.SavingsPersistenceTest,com.example.pocketquestbudgeting.data.EarnedAchievementPersistenceTest,com.example.pocketquestbudgeting.data.SavingsMigrationTest');
 }
+if (process.env.POCKET_GAMIFICATION_TESTS === '1') {
+  if (serial !== 'emulator-5554' || avd !== 'PocketQuest_Account_Tests_API35') throw new Error('Gamification tests require the dedicated AVD.');
+  if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') throw new Error('Gamification tests require Firestore.');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.class=com.example.pocketquestbudgeting.data.GamificationFirebaseTest,com.example.pocketquestbudgeting.data.CustomWorthMigrationTest,com.example.pocketquestbudgeting.ui.GamificationScreenTest,com.example.pocketquestbudgeting.ui.SavingsScreenTest');
+}
 if (process.env.POCKET_RECEIPT_TESTS === '1') {
   if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080'
       || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== '127.0.0.1:9199') throw new Error('Receipt tests require local Firestore and Storage.');
@@ -53,14 +59,15 @@ if (process.env.POCKET_RECEIPT_TESTS === '1') {
 }
 if (process.env.FIREBASE_STORAGE_EMULATOR_HOST !== '127.0.0.1:9199') {
   const excluded = ['ReceiptFirebaseTest'];
+  if (process.env.POCKET_GAMIFICATION_TESTS !== '1') excluded.push('GamificationFirebaseTest');
   if (process.env.POCKET_SAVINGS_TESTS !== '1') excluded.push('SavingsFirebaseTest');
   args.push(`-Pandroid.testInstrumentationRunnerArguments.notClass=${excluded.map(name => `com.example.pocketquestbudgeting.data.${name}`).join(',')}`);
 } else if (process.env.POCKET_SAVINGS_TESTS !== '1') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.SavingsFirebaseTest');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.SavingsFirebaseTest,com.example.pocketquestbudgeting.data.GamificationFirebaseTest');
 }
 // Firestore integration cases need both local emulators; the older Auth-only command excludes them.
 if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8080') {
-  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.ReceiptFirebaseTest,com.example.pocketquestbudgeting.data.SavingsFirebaseTest');
+  args.push('-Pandroid.testInstrumentationRunnerArguments.notClass=com.example.pocketquestbudgeting.data.FirebaseSyncTest,com.example.pocketquestbudgeting.data.CategoryFirebaseTest,com.example.pocketquestbudgeting.data.ExpenseFirebaseTest,com.example.pocketquestbudgeting.data.MonthlyGoalFirebaseTest,com.example.pocketquestbudgeting.data.ReceiptFirebaseTest,com.example.pocketquestbudgeting.data.SavingsFirebaseTest,com.example.pocketquestbudgeting.data.GamificationFirebaseTest');
 }
 const result = process.platform === 'win32'
   ? spawnSync('cmd.exe', ['/d', '/c', 'gradlew.bat', ...args], { stdio: 'inherit' })

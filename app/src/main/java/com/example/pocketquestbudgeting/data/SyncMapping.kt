@@ -11,19 +11,26 @@ object SyncMapping {
         SavingsMapping.GOALS to setOf("name", "targetCents", "targetDate", "note"),
         SavingsMapping.CONTRIBUTIONS to setOf("goalCloudId", "kind", "amountCents", "effectiveDate", "reversesBusinessId", "note"),
         SavingsMapping.AWARDS to setOf("badgeId", "criteriaVersion", "earnedAtEpochMillis", "earnedDate", "earnedZoneId", "evidenceRecordId"),
+        GamificationMapping.ACTIVITY to setOf("date"),
+        GamificationMapping.ITEMS to setOf("name", "valueCents", "category"),
     )
 
     fun checkType(type: String) { require(type in fields) { "Unsupported record type." } }
+    fun immutable(type: String) = SavingsMapping.immutable(type) || type == GamificationMapping.ACTIVITY
 
     fun checkKey(type: String, id: String) {
         checkType(type)
         if (type in SavingsMapping.types) { SavingsChecks.requireKey(id); return }
         if (type == "monthlyGoals") require(MonthlyGoalChecks.validMonth(id)) { "Use a canonical YYYY-MM month." }
+        if (type == GamificationMapping.ACTIVITY) require(ExpenseChecks.validDate(id))
+        if (type == GamificationMapping.ITEMS) require(Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}").matches(id))
         require(id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) { "Invalid stable record ID." }
     }
 
     fun checkIdentity(type: String, id: String, values: Map<String, Any?>) {
         checkKey(type, id)
+        if (type == GamificationMapping.ACTIVITY) require(values["date"] == id)
+        if (type in GamificationMapping.types) GamificationMapping.validate(type, values)
         if (type == "monthlyGoals") require(MonthlyGoalChecks.monthKey(values["startDate"] as String, values["endDate"] as String) == id)
         if (type == SavingsMapping.GOALS) SavingsChecks.requireGoal(SavingsMapping.goal(1, id, values))
         if (type == SavingsMapping.CONTRIBUTIONS) {
@@ -35,6 +42,7 @@ object SyncMapping {
     fun encode(type: String, values: Map<String, Any?>): String {
         require(values.keys == fields[type]) { "Use the exact agreed business fields." }
         if (type in SavingsMapping.types) SavingsMapping.validate(type, values)
+        if (type in GamificationMapping.types) GamificationMapping.validate(type, values)
         if (type == "categories") {
             val name = values["name"] as? String ?: error("Invalid category name.")
             require(name.isNotBlank() && name == name.trim()) { "Use a nonblank trimmed category name." }
@@ -55,7 +63,7 @@ object SyncMapping {
         values.toSortedMap().forEach { (key, value) ->
             // I kept cents as integers and excluded device paths and credentials (Google, 2026v).
             require(value == null || value is String || value is Long || value is Boolean) { "Unsupported field type." }
-            if (type !in SavingsMapping.types) when (key) {
+            if (type !in SavingsMapping.types && type !in GamificationMapping.types) when (key) {
                 "minimumCents", "maximumCents", "amountCents" -> require(value is Long && value >= 0) { "Use whole nonnegative cents." }
                 "receiptObjectPath" -> require(value == null || value is String) { "Invalid receipt reference." }
                 else -> require(value is String) { "Invalid text field." }

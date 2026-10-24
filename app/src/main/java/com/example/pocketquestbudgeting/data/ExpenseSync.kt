@@ -55,7 +55,7 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
             if (old == null) expenses.insert(saved) else check(expenses.updateSynced(saved) == 1)
             if (change != ReceiptChange.KEEP) ReceiptState.choose(db, account, saved, change)
         }
-        db.gamificationDao().markActiveDay(account.localUserId, todayIsoDate())
+        GamificationSync(db, sync).markActiveDay(account, todayIsoDate())
         1
     }
 

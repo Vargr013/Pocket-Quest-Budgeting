@@ -1,5 +1,22 @@
 package com.example.pocketquestbudgeting.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import com.example.pocketquestbudgeting.data.AccountSession
+import com.example.pocketquestbudgeting.data.AccountSessions
+import com.example.pocketquestbudgeting.data.SavingsSync
+import com.example.pocketquestbudgeting.data.SavingsSyncs
+import com.example.pocketquestbudgeting.data.SavingsGoalEntity
+import com.example.pocketquestbudgeting.data.SavingsContributionEntity
+import com.example.pocketquestbudgeting.data.SavingsChecks
+import com.example.pocketquestbudgeting.data.DatabaseProvider
+import com.example.pocketquestbudgeting.data.todayIsoDate
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import java.util.UUID
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +72,16 @@ private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
-fun AddSavingGoalScreen(onBack: () -> Unit) {
+fun AddSavingGoalScreen(userId: Long = 0, onBack: () -> Unit, session: AccountSession? = null, sync: SavingsSync? = null) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var goalName by rememberSaveable(userId) { mutableStateOf("") }
+    var goalKey by rememberSaveable(userId) { mutableStateOf(UUID.randomUUID().toString()) }
+    var openingDate by rememberSaveable(userId) { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    BackHandler(enabled = saving) {}
+
     var totalSavingAmount by rememberSaveable { mutableStateOf("") }
     var currentSavedAmount by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
@@ -79,7 +105,7 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
         ) {
             // I added Back so this screen can return to the menu.
             TextButton(
-                onClick = onBack,
+                onClick = { if (!saving) onBack() },
                 modifier = Modifier.align(Alignment.CenterStart),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
             ) {
@@ -113,22 +139,24 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
                     Text("Add Saving Goal", fontSize = 20.sp, color = TextPrimary)
                 }
 
+                Text("Goal Name", fontSize = 15.sp, color = TextPrimary)
+                PlainField(value = goalName, onValueChange = { goalName = it }, enabled = !saving, placeholder = "e.g. Holiday Fund", background = FieldBgSoft)
                 Text("Total Saving Goal", fontSize = 15.sp, color = TextPrimary)
                 AmountField(
                     value = totalSavingAmount,
-                    onValueChange = { totalSavingAmount = it },
+                    onValueChange = { totalSavingAmount = it }, enabled = !saving,
                 )
 
                 Text("Current Saved Amount", fontSize = 15.sp, color = TextPrimary)
                 AmountField(
                     value = currentSavedAmount,
-                    onValueChange = { currentSavedAmount = it },
+                    onValueChange = { currentSavedAmount = it }, enabled = !saving,
                 )
 
                 Text("Note", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = note,
-                    onValueChange = { note = it },
+                    onValueChange = { note = it }, enabled = !saving,
                     placeholder = "e.g. Salary top-up",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
@@ -137,7 +165,7 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
                 Text("Target Date", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
                     value = targetDate,
-                    onValueChange = { targetDate = it },
+                    onValueChange = { targetDate = it }, enabled = !saving,
                     placeholder = "e.g. 13/12/2027",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
@@ -145,8 +173,32 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
             }
         }
 
+        Text("Opening amounts are recorded today. A local save will sync when connected.", color = TextSecondary, fontSize = 12.sp)
+        error?.let { Text(it, color = Color(0xFFD64545)) }
         Button(
-            onClick = { },
+            enabled = !saving,
+            onClick = {
+                if (!saving) {
+                    saving = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val account = screenAccount(context, userId, session)
+                            val target = savingsAmount(totalSavingAmount)
+                            val opening = savingsAmount(currentSavedAmount, allowZero = true)
+                            val date = savingsTargetDate(targetDate)
+                            val row = SavingsGoalEntity(userId = userId, cloudId = goalKey, name = goalName.trim(),
+                                targetCents = target, targetDate = date, note = note.trim().ifEmpty { null })
+                            SavingsChecks.requireGoal(row)
+                            if (opening > 0 && openingDate == null) openingDate = todayIsoDate()
+                            (sync ?: SavingsSyncs.get(context)).createGoal(account, row, opening, if (opening > 0) openingDate else null)
+                            if ((session ?: AccountSessions.get(context)).isCurrent(account)) onBack()
+                        } catch (cancelled: CancellationException) { throw cancelled
+                        } catch (failure: Exception) { error = failure.message ?: "Could not save this goal. Your entries are kept."
+                        } finally { saving = false }
+                    }
+                }
+            },
             shape = CardShape,
             contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
@@ -172,6 +224,7 @@ fun AddSavingGoalScreen(onBack: () -> Unit) {
 private fun AmountField(
     value: String,
     onValueChange: (String) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -195,6 +248,7 @@ private fun AmountField(
         PlainField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             placeholder = "Enter Amount",
             keyboardType = KeyboardType.Decimal,
             background = Color.Transparent,
@@ -209,6 +263,7 @@ private fun PlainField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     background: Color = FieldBgSoft,
     height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
@@ -226,6 +281,7 @@ private fun PlainField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             singleLine = true,
             textStyle = TextStyle(
                 fontSize = 12.sp,

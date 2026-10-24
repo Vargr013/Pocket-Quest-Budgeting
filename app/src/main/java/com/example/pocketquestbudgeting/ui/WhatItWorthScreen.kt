@@ -57,6 +57,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pocketquestbudgeting.R
+import com.example.pocketquestbudgeting.data.AccountSession
+import com.example.pocketquestbudgeting.data.AccountSessions
+import com.example.pocketquestbudgeting.data.GamificationSync
+import com.example.pocketquestbudgeting.data.GamificationSyncs
+import org.json.JSONObject
+import java.util.UUID
 import com.example.pocketquestbudgeting.data.AchievementGroup
 import com.example.pocketquestbudgeting.data.AchievementLoader
 import com.example.pocketquestbudgeting.data.AchievementReport
@@ -90,7 +96,7 @@ private enum class WorthBasis(val label: String) {
 }
 
 @Composable
-fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Unit = {}) {
+fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Unit = {}, session: AccountSession? = null, sync: GamificationSync? = null) {
     val inspecting = LocalInspectionMode.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,10 +104,12 @@ fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Un
     var customItems by remember { mutableStateOf(if (inspecting) previewCustomItems else emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    val changed = gamificationReload(userId)
+    var changing by remember(userId) { mutableStateOf(false) }
     var category by rememberSaveable { mutableStateOf(if (inspecting) WorthCategory.FOOD else loadWorthCategory(context, userId)) }
 
     if (!inspecting) {
-        LaunchedEffect(userId, reload) {
+        LaunchedEffect(userId, reload, changed) {
             try {
                 val db = DatabaseProvider.get(context)
                 report = AchievementLoader.load(context, userId)
@@ -115,17 +123,16 @@ fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Un
         }
     }
 
-    fun change(action: suspend () -> Unit) {
-        scope.launch {
-            try {
-                action()
-                reload++
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                error = "Could not save your custom item."
-            }
-        }
+    suspend fun change(action: suspend () -> Unit) {
+        check(!changing) { "Please wait for the current save." }
+        changing = true
+        try {
+            action()
+            reload++
+            error = null
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (failure: Exception) { error = failure.message ?: "Could not save your custom item."; throw failure
+        } finally { changing = false }
     }
 
     WhatItWorthContent(
@@ -137,14 +144,28 @@ fun WhatItWorthScreen(userId: Long, onBack: () -> Unit, onAchievements: () -> Un
             category = it
             if (!inspecting) saveWorthCategory(context, userId, it)
         },
-        onAddCustom = { name, cents ->
+        onAddCustom = { name, cents, reviewed, key ->
             change {
-                DatabaseProvider.get(context).gamificationDao().insertCustomItem(
-                    CustomWorthItemEntity(userId = userId, name = name, valueCents = cents, category = WorthCategory.CUSTOM.name),
-                )
+                val account = screenAccount(context, userId, session)
+                val row = reviewed?.copy(name = name, valueCents = cents, category = WorthCategory.CUSTOM.name, cloudId = reviewed.cloudId ?: key)
+                    ?: CustomWorthItemEntity(userId = userId, name = name, valueCents = cents,
+                        category = WorthCategory.CUSTOM.name, cloudId = key)
+                (sync ?: GamificationSyncs.get(context)).saveItem(account, row, reviewed)
+                check((session ?: AccountSessions.get(context)).isCurrent(account)) { "Please log in again." }
             }
         },
-        onDeleteCustom = { id -> change { DatabaseProvider.get(context).gamificationDao().deleteCustomItem(userId, id) } },
+        onDeleteCustom = { id ->
+            scope.launch {
+                try {
+                    change {
+                        val account = screenAccount(context, userId, session)
+                        val row = requireNotNull(customItems.firstOrNull { it.id == id }) { "This item changed. Reopen it before removing it." }
+                        (sync ?: GamificationSyncs.get(context)).removeItem(account, row)
+                    }
+                } catch (cancelled: CancellationException) { throw cancelled
+                } catch (_: Exception) { }
+            }
+        },
         onBack = onBack,
         onAchievements = onAchievements,
     )
@@ -157,7 +178,7 @@ private fun WhatItWorthContent(
     error: String?,
     category: WorthCategory,
     onCategory: (WorthCategory) -> Unit,
-    onAddCustom: (String, Long) -> Unit,
+    onAddCustom: suspend (String, Long, CustomWorthItemEntity?, String) -> Unit,
     onDeleteCustom: (Long) -> Unit,
     onBack: () -> Unit,
     onAchievements: () -> Unit,
@@ -229,7 +250,7 @@ private fun WhatItWorthContent(
             selectedItemId = null
         }
 
-        val items = if (category == WorthCategory.CUSTOM) customItems.map(WorthCatalog::custom)
+        val items = if (category == WorthCategory.CUSTOM) customItems.filter { it.valueCents > 0 }.map(WorthCatalog::custom)
             else WorthCatalog.forCategory(category)
         val item = items.firstOrNull { it.id == selectedItemId } ?: items.firstOrNull()
 
@@ -351,12 +372,24 @@ private fun ComparisonHeadline(basis: WorthBasis, savedCents: Long, item: WorthI
 @Composable
 private fun CustomItemsCard(
     customItems: List<CustomWorthItemEntity>,
-    onAdd: (String, Long) -> Unit,
+    onAdd: suspend (String, Long, CustomWorthItemEntity?, String) -> Unit,
     onDelete: (Long) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
     var formError by rememberSaveable { mutableStateOf<String?>(null) }
+    var key by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var snapshot by rememberSaveable { mutableStateOf<String?>(null) }
+    val reviewed = remember(snapshot) {
+        snapshot?.let {
+            val json = JSONObject(it)
+            CustomWorthItemEntity(id = json.getLong("id"), userId = json.getLong("owner"), name = json.getString("name"),
+                valueCents = json.getLong("valueCents"), category = json.getString("category"),
+                cloudId = if (json.isNull("key")) null else json.getString("key"))
+        }
+    }
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
 
     WorthCard(title = "Your custom items") {
         customItems.forEach { item ->
@@ -368,12 +401,21 @@ private fun CustomItemsCard(
             ) {
                 Text(item.name, color = TextPrimary, modifier = Modifier.weight(1f))
                 Text(formatBudgetAmount(item.valueCents), color = TextSecondary)
-                TextButton(onClick = { onDelete(item.id) }) { Text("Remove", color = ErrorRed) }
+                TextButton(enabled = !saving, onClick = {
+                    snapshot = JSONObject().put("id", item.id).put("owner", item.userId).put("key", item.cloudId ?: JSONObject.NULL)
+                        .put("name", item.name).put("valueCents", item.valueCents).put("category", item.category).toString()
+                    key = UUID.randomUUID().toString()
+                    name = item.name
+                    value = centsToBudgetInput(item.valueCents)
+                    formError = null
+                }) { Text("Edit", color = Teal) }
+                TextButton(enabled = !saving, onClick = { onDelete(item.id) }) { Text("Remove", color = ErrorRed) }
             }
         }
         if (customItems.isEmpty()) Text("No custom items yet.", color = TextSecondary)
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
+            enabled = !saving,
             value = name,
             onValueChange = { name = it.take(MAX_CUSTOM_NAME) },
             label = { Text("Item name") },
@@ -382,6 +424,7 @@ private fun CustomItemsCard(
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
+            enabled = !saving,
             value = value,
             onValueChange = { value = it },
             label = { Text("Estimated value (R)") },
@@ -394,7 +437,11 @@ private fun CustomItemsCard(
             Text(it, color = ErrorRed, fontSize = 12.sp)
         }
         Spacer(modifier = Modifier.height(8.dp))
+        if (reviewed != null) TextButton(enabled = !saving, onClick = {
+            snapshot = null; name = ""; value = ""; key = UUID.randomUUID().toString(); formError = null
+        }) { Text("Cancel edit") }
         Button(
+            enabled = !saving,
             onClick = {
                 val cents = parseBudgetCents(value)
                 formError = when {
@@ -403,15 +450,21 @@ private fun CustomItemsCard(
                     else -> null
                 }
                 if (formError == null && cents != null) {
-                    onAdd(name.trim(), cents)
-                    name = ""
-                    value = ""
+                    saving = true
+                    scope.launch {
+                        try {
+                            onAdd(name.trim(), cents, reviewed, key)
+                            name = ""; value = ""; snapshot = null; key = UUID.randomUUID().toString()
+                        } catch (cancelled: CancellationException) { throw cancelled
+                        } catch (failure: Exception) { formError = failure.message ?: "Could not save this item. Your entries are kept."
+                        } finally { saving = false }
+                    }
                 }
             },
             colors = ButtonDefaults.buttonColors(containerColor = ButtonTeal),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Add custom item")
+            Text(if (reviewed == null) "Add custom item" else "Save item changes")
         }
     }
 }

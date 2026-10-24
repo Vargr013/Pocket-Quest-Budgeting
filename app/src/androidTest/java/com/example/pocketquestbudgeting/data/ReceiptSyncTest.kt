@@ -129,7 +129,9 @@ class ReceiptSyncTest {
         sync.retryPending(account)
         assertTrue(db.syncDao().pending(account.uid).isEmpty())
         assertNotNull(row().receiptObjectPath)
-        assertEquals(3, cloud.receipts.size) // category, expense, publication
+        assertEquals(3, cloud.sent.count { it.recordType == "categories" || it.recordType == "expenses" })
+        assertEquals(1, cloud.sent.count { it.recordType == GamificationMapping.ACTIVITY })
+        assertEquals(4, cloud.receipts.size)
     }
     @Test fun explicitRemovalAndRemoteOnlyKeepHadDifferentMeaning() = runBlocking {
         save(); publish(); val before = row()

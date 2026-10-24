@@ -182,6 +182,18 @@ object DatabaseMigrations {
             FROM_11_TO_12.migrate(db)
         }
     }
+    val FROM_12_TO_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // I kept the old rows and gave each comparison its own identity before syncing it.
+            db.execSQL("ALTER TABLE custom_worth_items ADD COLUMN cloudId TEXT")
+            db.execSQL("ALTER TABLE custom_worth_items ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+            db.query("SELECT id FROM custom_worth_items").use { rows ->
+                while (rows.moveToNext()) db.execSQL("UPDATE custom_worth_items SET cloudId = ? WHERE id = ?",
+                    arrayOf<Any>(java.util.UUID.randomUUID().toString(), rows.getLong(0)))
+            }
+            db.execSQL("CREATE UNIQUE INDEX index_custom_worth_items_userId_cloudId ON custom_worth_items(userId, cloudId)")
+        }
+    }
     val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7,
-        FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11, FROM_11_TO_12, FROM_10_TO_12)
+        FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11, FROM_11_TO_12, FROM_10_TO_12, FROM_12_TO_13)
 }

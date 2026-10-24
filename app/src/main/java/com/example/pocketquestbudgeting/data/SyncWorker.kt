@@ -62,6 +62,8 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
             val expenses = ExpenseSyncs.get(applicationContext)
             val goals = MonthlyGoalSyncs.get(applicationContext)
             val savings = SavingsSyncs.get(applicationContext)
+            val gamification = GamificationSyncs.get(applicationContext)
+            val gamificationNeedsReview = gamification.importExisting(account)
             val importNeedsReview = expenses.importExisting(account) + goals.importExisting(account) + savings.importExisting(account)
             val result = coordinator.retryPending(account)
             if (result == SyncRun.DETACHED) return Result.success()
@@ -78,12 +80,15 @@ class SyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWork
             if (receiptRetry || publicationResult == SyncRun.RETRY) return Result.retry()
             // I finished existing financial and receipt recovery before downloading the added feature paths.
             savings.refresh(account)
-            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" && it !in SavingsMapping.types }
+            gamification.refresh(account)
+            val types = DatabaseProvider.get(applicationContext).syncDao().records(account.uid).map { it.recordType }.distinct().filter { it != "categories" && it != "expenses" && it != "monthlyGoals" && it !in SavingsMapping.types && it !in GamificationMapping.types }
             for (type in types) {
                 if (!session.isCurrent(account)) return Result.success()
                 coordinator.refreshFromServer(account, type)
             }
-            if (importNeedsReview > 0) Result.failure(workDataOf("message" to
+            if (gamificationNeedsReview > 0) Result.failure(workDataOf("message" to
+                "Some activity dates or custom comparisons need review before import. Other valid records can still sync."))
+            else if (importNeedsReview > 0) Result.failure(workDataOf("message" to
                 "Some local records need review before import. Correct their category, amount, date, times, description or monthly limits/range; other valid records can still sync."))
             else Result.success()
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled

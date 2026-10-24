@@ -72,11 +72,12 @@ private val CardShape = RoundedCornerShape(20.dp)
 fun AchievementsScreen(userId: Long, onBack: () -> Unit) {
     val inspecting = LocalInspectionMode.current
     val context = LocalContext.current
+    val reload = gamificationReload(userId)
     var report by remember { mutableStateOf(if (inspecting) previewAchievementReport() else null) }
     var error by remember { mutableStateOf<String?>(null) }
 
     if (!inspecting) {
-        LaunchedEffect(userId) {
+        LaunchedEffect(userId, reload) {
             try {
                 report = AchievementLoader.load(context, userId)
                 error = null

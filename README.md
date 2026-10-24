@@ -89,11 +89,11 @@ First authentication/linking needs internet. Remember Me permits restoration of 
 
 Data lives in the local Room database `pocket-quest.db`. Photos are files under the app’s private storage; expenses store the file path.
 
-Categories, expenses and monthly goals have Room/Firestore sync. Savings goals, immutable contributions and achievement evidence also have persistence and sync adapters. The savings action buttons and savings examples still need the feature owner's screen integration.
+Categories, expenses and monthly goals have Room/Firestore sync. Savings goals, immutable contributions and achievement evidence also have persistence and sync adapters. Add, Update and Remove Saving Goal use the existing savings adapters. Opening amounts and additions are retained events; the displayed balance is derived from that history.
 
-Achievements calculate badges from saved expenses, budgets, category limits and activity days. Earned badges use the existing award storage and sync path. What It's Worth compares unused budgets with estimated catalogue prices or custom items; its "Total saved" is the unused budget from completed months with logged expenses, rather than savings-goal contributions. Activity days, custom items and comparison preferences stay on the device. Historical category results use the current category limits.
+Achievements calculate badges from saved expenses, budgets, category limits and activity days. Earned badges use the existing award storage and sync path. What It's Worth compares unused budgets with estimated catalogue prices or custom items; its "Total saved" is the unused budget from completed months with logged expenses, rather than savings-goal contributions. Activity days and custom items also sync through the account. Comparison preferences stay on the device. Historical category results use the current category limits.
 
-Room version 12 retains the existing financial, receipt, savings and award tables and adds activity days and custom worth items. Forward migrations cover main's versions 10/11 and the standalone gamification version 10, retaining its original badges, activity days and custom items.
+Room version 13 adds stable cloud IDs and retained deletion markers to custom worth items. Forward migrations cover main's versions 10 to 12 and the standalone gamification version 10, retaining its original badges, activity days and custom items. Existing financial, receipt, savings and award tables remain intact.
 
 Android account/database backup is excluded so a copied session is not treated as a first login on another device. Keep existing data when checking migrations or offline recovery; do not clear app storage to hide a database mismatch.
 
@@ -111,6 +111,8 @@ Cloud records live under `users/{uid}`:
 | `savingsGoals` | Goal details and retained deletion markers |
 | `savingsContributions` | Immutable opening/addition/full-reversal events |
 | `earnedAchievements` | Supplied award evidence, criteria version and earned time/date |
+| `activityDays` | One immutable recorded local-calendar day per account/date |
+| `customWorthItems` | Named comparison values, stable IDs and retained removals |
 | `mutations` | Immutable receipts used for safe transport retries |
 | `savingsBalances`, `savingsReversals` | Internal paired-write guards |
 | `receiptObjects` | Receipt reference lifecycle metadata |
@@ -128,13 +130,22 @@ For feature integration, use the existing adapters with a captured `SyncAccount`
 | `CategorySyncs.get(context)` | `create`, `rename`, `setBudgets`, `archive` |
 | `ExpenseSyncs.get(context)` | `save`, `delete` |
 | `MonthlyGoalSyncs.get(context)` | `saveForMonth` |
-| `SavingsSyncs.get(context)` | `createGoal`, `editGoal`, `removeGoal`, `recordContribution`, `recordEarned` |
+| `SavingsSyncs.get(context)` | `createGoal`, `editGoal`, `updateGoalWithContribution`, `removeGoal`, `recordContribution`, `recordEarned` |
+| `GamificationSyncs.get(context)` | `markActiveDay`, `saveItem`, `removeItem` |
 
 Keep Room reads scoped to the captured local user. Savings edit/remove calls take the reviewed goal; stale drafts must be reopened. Saved balances are derived from contributions, not set as a separate field. A positive opening uses `opening:<goal UUID>`; zero creates no event. A full reversal can be recorded once and keeps the original history.
 
 Achievement evidence is owner-supplied. `AchievementLoader` evaluates the app's earning criteria and records each newly earned badge once, using a stable `gamification:v1:<badge ID>` award key. Existing awards and their supplied evidence are retained. The deployed rules validate ownership and record shape; they do not independently verify the earning criteria.
 
+Activity dates use the date recorded on the reviewing/logging device. Downloads and background sync do not mark today active. Two devices publishing the same day converge on one fact. Custom comparison edits use revision review; removals retain tombstones and cannot be restored by a stale edit. Independent same-name items keep separate identities.
+
+Savings forms accept a strict optional `dd/MM/yyyy` target date and exact whole-cent amounts. Opening amounts/additions use today's captured business date, independently of the target date. Update commits its metadata and optional addition together locally; cloud publication and conflicts remain separate. Repeated submission retains the original business identity.
+
+If two devices independently award the same badge with different earned evidence, the local draft stays available for reviewed server acceptance. Accepted cloud awards are immutable. The open screens refresh from local database changes, without overwriting a dirty savings/custom-item form.
+
 ## Receipt and service status
+
+The new activity/custom-item paths need this revision's Firestore rules deployed before live sync can succeed. The implementation and local tests do not deploy those rules. If an earlier attempt was denied, use Retry failed after the release so the retained operations can publish.
 
 Local camera/gallery receipts remain supported. Receipt jobs and cache handling support KEEP/REPLACE/REMOVE, retries and retained-object lifecycle checks. The existing Firebase Storage emulator tests exercise transfer behaviour.
 
@@ -170,6 +181,7 @@ The returned name must match exactly and boot completion must be `1`. Keep perso
 |---|---|
 | `npm run test:database` | Android Room, additive migrations and local fixture/coordinator regression; no Firebase emulator needed |
 | `npm run test:savings` | Savings/award integration using root Firestore rules |
+| `npm run test:gamification` | Strict two-client activity/custom-item sync, migration and custom/savings screen flows |
 | `npm run test:rules` | Direct root Firestore/Storage security rules |
 | `npm run test:receipts` | Receipt jobs/cache and strict emulator transfer |
 | `npm run test:expenses` | Expense sync/import with root Firestore rules |

@@ -26,6 +26,35 @@ class SavingsSync(private val db: AppDatabase, private val sync: PocketQuestSync
         }
     }
 
+    suspend fun updateGoalWithContribution(account: SyncAccount, reviewed: SavingsGoalEntity, name: String,
+        targetCents: Long, targetDate: String?, note: String?, addition: SavingsContributionEntity? = null) = db.withTransaction {
+        sync.checkOwner(account)
+        require(reviewed.userId == account.localUserId)
+        val changed = reviewed.copy(name = name, targetCents = targetCents, targetDate = targetDate, note = note)
+        SavingsChecks.requireGoal(changed)
+        if (addition != null) {
+            SavingsChecks.requireContribution(addition)
+            require(addition.userId == account.localUserId && addition.goalId == reviewed.id && addition.kind == SavingsChecks.ADDITION)
+            // I checked an already saved addition first so retrying the same button press cannot add it twice.
+            goals.contribution(account.localUserId, addition.businessId)?.let { old ->
+                check(old.copy(id = 0) == addition) { "This addition was already saved with different values." }
+                check(goals.getForUserById(account.localUserId, reviewed.id) == changed) {
+                    "This addition is already saved. Reopen the goal to review its latest details."
+                }
+                importExisting(account)
+                return@withTransaction
+            }
+        }
+        val current = requireNotNull(goals.getForUserById(account.localUserId, reviewed.id))
+        check(!current.isDeleted && (current == reviewed || (addition == null && current == changed))) {
+            "The goal changed. Reopen it before saving."
+        }
+        if (current != changed) editGoal(account, current, name, targetCents, targetDate, note)
+        if (addition != null) recordContribution(account, addition)
+        importExisting(account)
+        sync.checkOwner(account)
+    }
+
     suspend fun removeGoal(account: SyncAccount, reviewed: SavingsGoalEntity) = db.withTransaction {
         sync.checkOwner(account)
         require(reviewed.userId == account.localUserId)

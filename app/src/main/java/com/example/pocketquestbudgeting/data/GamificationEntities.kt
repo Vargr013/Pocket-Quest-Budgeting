@@ -3,8 +3,8 @@ package com.example.pocketquestbudgeting.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
-// Activity days and custom comparisons stay on this device. Badges use the shared earned-achievement model.
 // A row means the user logged or reviewed expenses on that YYYY-MM-DD date.
 @Entity(tableName = "activity_days", primaryKeys = ["userId", "date"])
 data class ActivityDayEntity(
@@ -12,7 +12,7 @@ data class ActivityDayEntity(
     val date: String,
 )
 
-@Entity(tableName = "custom_worth_items", indices = [Index("userId")])
+@Entity(tableName = "custom_worth_items", indices = [Index("userId"), Index(value = ["userId", "cloudId"], unique = true)])
 data class CustomWorthItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: Long,
@@ -20,4 +20,6 @@ data class CustomWorthItemEntity(
     // I stored the estimate in cents, matching expenses.
     val valueCents: Long,
     val category: String,
+    val cloudId: String? = null,
+    @ColumnInfo(defaultValue = "0") val isDeleted: Boolean = false,
 )

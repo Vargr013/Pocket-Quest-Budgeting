@@ -41,7 +41,7 @@ class GamificationUpgradeTest {
         }
         var db = open(name)
         try {
-            assertEquals(12, db.openHelper.writableDatabase.version)
+            assertEquals(13, db.openHelper.writableDatabase.version)
             assertEquals(before, snapshot(tables) { db.openHelper.writableDatabase.query(it) })
             assertEquals(9007199254740993L, db.savingsDao().savedCents(41, 91))
             assertTrue(db.gamificationDao().getActiveDays(41).isEmpty())
@@ -84,7 +84,7 @@ class GamificationUpgradeTest {
         }
         var db = open(name)
         try {
-            assertEquals(12, db.openHelper.writableDatabase.version)
+            assertEquals(13, db.openHelper.writableDatabase.version)
             assertEquals(before, snapshot(retainedTables) { db.openHelper.writableDatabase.query(it) })
             val badges = db.earnedAchievementDao().getForUser(41)
             assertEquals(setOf("first_expense", "streak_3"), badges.map { it.badgeId }.toSet())
@@ -142,7 +142,7 @@ class GamificationUpgradeTest {
         .addMigrations(*DatabaseMigrations.ALL).build()
 
     private fun snapshot(tables: List<String>, query: (String) -> Cursor) = tables.associateWith { table ->
-        query("SELECT * FROM `$table` ORDER BY rowid").use { cursor ->
+        query("SELECT ${if (table == "custom_worth_items") "id,userId,name,valueCents,category" else "*"} FROM `$table` ORDER BY rowid").use { cursor ->
             buildList { while (cursor.moveToNext()) add((0 until cursor.columnCount).map { column ->
                 if (cursor.isNull(column)) null else "${cursor.getType(column)}:${cursor.getString(column)}"
             }) }

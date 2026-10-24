@@ -71,6 +71,7 @@ private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modi
                 onCategorySpend = { navController.navigate("category_spend") },
                 onAddSavingGoal = { navController.navigate("add_saving_goal") },
                 onRemoveSavingGoal = { navController.navigate("remove_saving_goal") },
+                onUpdateSavingGoal = { navController.navigate("update_saving_goal") },
 
                 // I ended the session so the login graph replaced this account.
                 onLogout = onLogout,
@@ -93,10 +94,13 @@ private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modi
             CategorySpendingSummaryScreen(userId = userId, onBack = { navController.popBackStack() })
         }
         composable("add_saving_goal") {
-            AddSavingGoalScreen(onBack = { navController.popBackStack() })
+            AddSavingGoalScreen(userId = userId, onBack = { navController.popBackStack() })
+        }
+        composable("update_saving_goal") {
+            UpdateSavingGoalScreen(userId = userId, onBack = { navController.popBackStack() })
         }
         composable("remove_saving_goal") {
-            RemoveSavingGoalScreen(onBack = { navController.popBackStack() })
+            RemoveSavingGoalScreen(userId = userId, onBack = { navController.popBackStack() })
         }
         composable("add_expense") {
             AddExpenseScreen(

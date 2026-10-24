@@ -41,7 +41,7 @@ class PocketQuestSyncCoordinator(
         writeLocal: suspend () -> Unit,
     ): String {
         require(!creating || type == "monthlyGoals" || type == SavingsMapping.GOALS)
-        require(!SavingsMapping.immutable(type) || !deleted)
+        require(!SyncMapping.immutable(type) || !deleted)
         SyncMapping.checkKey(type, recordId)
         val payload = SyncMapping.encode(type, fields)
         SyncMapping.checkIdentity(type, recordId, fields)
@@ -61,7 +61,7 @@ class PocketQuestSyncCoordinator(
             }
             check(pending.none { it.state == "CONFLICT" || it.isDeleted }) { "Review this record before editing again." }
             // I kept new month claims at revision zero so existing cloud months needed review (Google, 2026x).
-            val base = if (pending.isEmpty()) { if (creating || SavingsMapping.immutable(type)) 0L else record.revision } else null
+            val base = if (pending.isEmpty()) { if (creating || SyncMapping.immutable(type)) 0L else record.revision } else null
             check(base != Long.MAX_VALUE) { "Revision limit reached." }
             writeLocal()
             dao.put(record)
@@ -217,7 +217,7 @@ class PocketQuestSyncCoordinator(
             val server = requireNotNull(dao.record(account.uid, type, id))
             check(server.revision == reviewedRevision) { "The server version changed. Review it again." }
             check(!keepLocal || !server.isDeleted) { "Deleted records need a new ID; they cannot be restored." }
-            check(!keepLocal || !SavingsMapping.immutable(type)) { "Accepted contributions and earned evidence cannot be overwritten. Use the reviewed server record." }
+            check(!keepLocal || !SyncMapping.immutable(type)) { "Accepted contributions and earned evidence cannot be overwritten. Use the reviewed server record." }
             if (!keepLocal && type == "expenses") db.receiptJobDao().deselect(account.uid, id)
             if (!keepLocal) applyServer(server)
             dao.removeForReview(account.uid, type, id)
@@ -226,6 +226,9 @@ class PocketQuestSyncCoordinator(
                 val newId = UUID.randomUUID().toString()
                 val fields = if (type == "expenses") SyncMapping.decode(type, latest.payload).toMutableMap().apply {
                     this["receiptObjectPath"] = SyncMapping.decode(type, server.payload)["receiptObjectPath"]
+                } else if (type == GamificationMapping.ITEMS && latest.isDeleted) {
+                    // I removed the reviewed server version without changing its saved comparison values.
+                    SyncMapping.decode(type, server.payload)
                 } else null
                 dao.insert(latest.copy(sequence = 0, mutationId = newId, baseRevision = server.revision,
                     payload = fields?.let { SyncMapping.encode(type, it) } ?: latest.payload,

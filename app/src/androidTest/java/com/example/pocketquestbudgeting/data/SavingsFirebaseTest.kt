@@ -134,6 +134,55 @@ class SavingsFirebaseTest {
         assertTrue(second.db.earnedAchievementDao().getForUser(second.account.localUserId).all { it.earnedAtEpochMillis == 42L })
     }
 
+    @Test fun updateAndAdditionCommitTogetherAndAnExactRetryDoesNotAppendAgain() = runBlocking {
+        create(25000)
+        val reviewed = first.row()
+        val addition = event(first, 10000)
+        repeat(2) { first.savings.updateGoalWithContribution(first.account, reviewed, "Updated goal", 200000, null, "Retained note", addition) }
+        assertEquals(35000L, first.balance())
+        try {
+            first.savings.updateGoalWithContribution(first.account, reviewed, "Different retry", 300000, null, null, addition)
+            fail("Changed metadata reused a saved intent")
+        } catch (_: IllegalStateException) { }
+        assertEquals("Updated goal", first.row().name)
+        assertEquals(2, first.db.savingsDao().contributions(first.account.localUserId, reviewed.id).size)
+        first.flush(); second.refresh()
+        assertEquals(35000L, second.balance()); assertEquals("Updated goal", second.row().name)
+    }
+
+    @Test fun failingAdditionRollsBackTheMetadataAndQueuedEdit() = runBlocking {
+        create(Long.MAX_VALUE)
+        val reviewed = first.row()
+        try {
+            first.savings.updateGoalWithContribution(first.account, reviewed, "Must roll back", reviewed.targetCents, null, null, event(first, 1))
+            fail("Overflow accepted")
+        } catch (_: ArithmeticException) { }
+        assertEquals(reviewed, first.row())
+        assertEquals(Long.MAX_VALUE, first.balance())
+        assertTrue(first.db.syncDao().pending(first.account.uid).isEmpty())
+    }
+
+    @Test fun independentlyEvaluatedBadgeEvidenceStaysLocalUntilReviewedServerAcceptance() = runBlocking {
+        suspend fun evaluate(client: Client, now: Long): AchievementReport {
+            val owner = client.account.localUserId
+            val category = client.db.categoryDao().insert(CategoryEntity(userId = owner, name = "Synthetic food"))
+            client.db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 100,
+                date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+            return AchievementLoader.load(client.db, owner, today = "2026-10-20", nowMillis = now)
+        }
+        evaluate(first, 42); evaluate(second, 99)
+        first.savings.importExisting(first.account); first.flush()
+        second.savings.importExisting(second.account); second.flush(); second.refresh()
+        assertEquals(99L, second.db.earnedAchievementDao().getForUser(second.account.localUserId).single().earnedAtEpochMillis)
+        val issue = second.db.syncDao().pending(second.account.uid).single()
+        assertEquals("CONFLICT", issue.state)
+        val remote = second.db.syncDao().record(second.account.uid, issue.recordType, issue.recordId)!!
+        second.sync.resolveConflict(second.account, issue.recordType, issue.recordId, false, remote.revision) { second.savings.applyServer(it) }
+        val report = AchievementLoader.load(second.db, second.account.localUserId, today = "2026-10-20", nowMillis = 500)
+        assertEquals(42L, report.progress.first { it.definition.id == "first_expense" }.earnedAtMillis)
+        assertTrue(report.newlyEarned.isEmpty())
+    }
+
     @Test fun twoNamedClientsUseStableGoalIdentityWithDifferentLocalIdsAndExactOpening() = runBlocking {
         create(9007199254740993L)
         repeat(2) { second.refresh() }

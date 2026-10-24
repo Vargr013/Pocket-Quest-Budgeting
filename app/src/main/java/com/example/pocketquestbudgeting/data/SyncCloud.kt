@@ -24,7 +24,7 @@ interface SyncCloud {
 
 class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
     override suspend fun send(operation: SyncOperation, stillCurrent: () -> Boolean): SendResult {
-        if (SavingsMapping.immutable(operation.recordType)) return sendImmutableSavings(firestore, operation, stillCurrent)
+        if (SyncMapping.immutable(operation.recordType)) return sendImmutableRecord(firestore, operation, stillCurrent)
         val base = requireNotNull(operation.baseRevision)
         require(base >= 0 && base < Long.MAX_VALUE)
         SyncMapping.checkKey(operation.recordType, operation.recordId)

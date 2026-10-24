@@ -6,7 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.google.firebase.FirebaseNetworkException
 
-internal suspend fun sendImmutableSavings(firestore: FirebaseFirestore, operation: SyncOperation, stillCurrent: () -> Boolean): SendResult {
+internal suspend fun sendImmutableRecord(firestore: FirebaseFirestore, operation: SyncOperation, stillCurrent: () -> Boolean): SendResult {
     require(operation.baseRevision == 0L && !operation.isDeleted)
     val fields = SyncMapping.decode(operation.recordType, operation.payload)
     SyncMapping.checkIdentity(operation.recordType, operation.recordId, fields)

@@ -321,12 +321,43 @@ service cloud.firestore {
         && matchingReceipt(uid, id, request.resource.data, 0, 'earnedAchievements');
       allow update, delete: if false;
     }
+    function validActivity(id, data) {
+      return data.keys().hasAll(['date', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['date', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.date is string && data.date == id && validExpenseDate(data.date)
+        && featureMeta(data) && data.revision == 1 && !data.isDeleted;
+    }
+    match /users/{uid}/activityDays/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validActivity(id, request.resource.data)
+        && matchingReceipt(uid, id, request.resource.data, 0, 'activityDays');
+      allow update, delete: if false;
+    }
+    function validWorthItem(id, data) {
+      return mutationId(id)
+        && data.keys().hasAll(['name', 'valueCents', 'category', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.keys().hasOnly(['name', 'valueCents', 'category', 'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 40 && data.name.trim() == data.name
+        && data.valueCents is int && data.valueCents > 0 && data.category == 'CUSTOM' && featureMeta(data);
+    }
+    match /users/{uid}/customWorthItems/{id} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validWorthItem(id, request.resource.data)
+        && request.resource.data.revision == 1 && !request.resource.data.isDeleted
+        && matchingReceipt(uid, id, request.resource.data, 0, 'customWorthItems');
+      allow update: if isOwner(uid) && validWorthItem(id, request.resource.data) && !resource.data.isDeleted
+        && request.resource.data.revision == resource.data.revision + 1
+        && (!request.resource.data.isDeleted || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['revision', 'lastMutationId', 'updatedAt', 'isDeleted', 'deletedAt']))
+        && matchingReceipt(uid, id, request.resource.data, resource.data.revision, 'customWorthItems');
+      allow delete: if false;
+    }
     match /users/{uid}/mutations/{id} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && mutationId(id)
         && request.resource.data.keys().hasAll(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
         && request.resource.data.keys().hasOnly(['recordType', 'recordId', 'baseRevision', 'revision', 'fingerprint'])
-        && request.resource.data.recordType in ['categories', 'expenses', 'monthlyGoals', 'savingsGoals', 'savingsContributions', 'earnedAchievements']
+        && request.resource.data.recordType in ['categories', 'expenses', 'monthlyGoals', 'savingsGoals', 'savingsContributions', 'earnedAchievements', 'activityDays', 'customWorthItems']
         && (request.resource.data.recordType in ['savingsGoals', 'savingsContributions', 'earnedAchievements']
           ? businessId(request.resource.data.recordId) : stableId(request.resource.data.recordId))
         && request.resource.data.baseRevision is int && request.resource.data.baseRevision >= 0

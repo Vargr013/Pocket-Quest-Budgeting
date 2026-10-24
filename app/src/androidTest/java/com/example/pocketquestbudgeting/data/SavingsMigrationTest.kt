@@ -55,7 +55,7 @@ class SavingsMigrationTest {
         }
         var db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(12, db.openHelper.writableDatabase.version)
+            assertEquals(13, db.openHelper.writableDatabase.version)
             assertEquals(before, snapshot(tables) { sql -> db.openHelper.writableDatabase.query(sql) })
             assertTrue(db.savingsDao().getForUser(41, true).isEmpty())
             assertTrue(db.savingsDao().contributions(41, 1).isEmpty())

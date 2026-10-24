@@ -12,7 +12,8 @@ fun todayIsoDate(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Da
 // Reviewing counts toward the streak so users never need to spend money to keep it going.
 suspend fun markActiveToday(context: Context, userId: Long) {
     try {
-        DatabaseProvider.get(context).gamificationDao().markActiveDay(userId, todayIsoDate())
+        val account = AccountSessions.get(context).state.value.account?.takeIf { it.localUserId == userId } ?: return
+        GamificationSyncs.get(context).markActiveDay(account, todayIsoDate())
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {

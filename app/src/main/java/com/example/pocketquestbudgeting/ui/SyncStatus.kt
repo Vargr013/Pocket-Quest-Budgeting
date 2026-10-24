@@ -19,6 +19,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import com.example.pocketquestbudgeting.data.MonthlyGoalSyncs
 import com.example.pocketquestbudgeting.data.SavingsSyncs
+import com.example.pocketquestbudgeting.data.GamificationMapping
+import com.example.pocketquestbudgeting.data.GamificationSyncs
+import com.example.pocketquestbudgeting.data.SyncMapping
 import com.example.pocketquestbudgeting.data.SavingsMapping
 import com.example.pocketquestbudgeting.data.ExpenseSyncs
 import com.example.pocketquestbudgeting.data.CategorySyncs
@@ -74,22 +77,34 @@ internal fun SyncStatus(account: SyncAccount) {
             issues.forEach { issue ->
                 val latest = operations.last { it.recordType == issue.recordType && it.recordId == issue.recordId }
                 val remote = server.firstOrNull { it.recordType == issue.recordType && it.recordId == issue.recordId }
-                Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
+                if (issue.state == "CONFLICT" && issue.recordType == SavingsMapping.AWARDS) {
+                    val local = SyncMapping.decode(issue.recordType, latest.payload)
+                    val accepted = remote?.let { SyncMapping.decode(it.recordType, it.payload) }
+                    Text("${local["badgeId"]}: this device recorded ${local["earnedAtEpochMillis"]?.let { earnedDateText(it as Long) } ?: local["earnedDate"]}.")
+                    Text("Another device recorded ${accepted?.get("earnedAtEpochMillis")?.let { earnedDateText(it as Long) } ?: accepted?.get("earnedDate")}. Review the server record to keep one accepted earned date.")
+                } else if (issue.state == "CONFLICT" && issue.recordType == GamificationMapping.ITEMS) {
+                    val local = SyncMapping.decode(issue.recordType, latest.payload)
+                    val accepted = remote?.let { SyncMapping.decode(it.recordType, it.payload) }
+                    Text(if (latest.isDeleted) "${local["name"]}: removed on this device." else "${local["name"]}: ${formatBudgetAmount(local["valueCents"] as Long)} on this device.")
+                    Text(if (remote?.isDeleted == true) "Removed on another device." else "Server: ${accepted?.get("name")} - ${accepted?.get("valueCents")?.let { formatBudgetAmount(it as Long) }}")
+                } else Text("${issue.recordType}/${issue.recordId}: ${issue.lastError}\nLatest local edit: ${latest.payload}")
                 if (issue.state == "CONFLICT") {
-                    Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
-                    if (remote != null && issue.recordType in listOf("categories", "expenses", "monthlyGoals") + SavingsMapping.types) TextButton(onClick = { scope.launch {
+                    if (issue.recordType !in GamificationMapping.types && issue.recordType != SavingsMapping.AWARDS)
+                        Text("Server revision ${remote?.revision}: ${remote?.payload}\nDeleted on server: ${remote?.isDeleted}")
+                    if (remote != null && issue.recordType in listOf("categories", "expenses", "monthlyGoals") + SavingsMapping.types + GamificationMapping.types) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, false, remote.revision) {
                                 if (issue.recordType == "categories") CategorySyncs.get(context).applyServer(it)
                                 else if (issue.recordType == "expenses") ExpenseSyncs.get(context).applyServer(it)
                                 else if (issue.recordType == "monthlyGoals") MonthlyGoalSyncs.get(context).applyServer(it)
+                                else if (it.recordType in GamificationMapping.types) GamificationSyncs.get(context).applyServer(it)
                                 else SavingsSyncs.get(context).applyServer(it)
                             }
                             review = false
                         } catch (cancelled: CancellationException) { throw cancelled
                         } catch (_: Exception) { message = "The record changed. Review it again before retrying." }
                     } }) { Text("Use reviewed server record") }
-                    if (remote != null && !remote.isDeleted && !SavingsMapping.immutable(issue.recordType)) TextButton(onClick = { scope.launch {
+                    if (remote != null && !remote.isDeleted && !SyncMapping.immutable(issue.recordType)) TextButton(onClick = { scope.launch {
                         try {
                             PocketQuestSync.get(context).resolveConflict(account, issue.recordType, issue.recordId, true, remote.revision) {}
                             review = false
