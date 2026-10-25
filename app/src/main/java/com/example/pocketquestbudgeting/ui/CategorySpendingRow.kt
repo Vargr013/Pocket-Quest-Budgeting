@@ -22,6 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pocketquestbudgeting.data.CategorySpendingTotal
 
+private val ProgressTeal = Color(0xFF2A9D8F)
+private val ProgressAmber = Color(0xFFE9A825)
+private val ProgressRed = Color(0xFFD64545)
+
 @Composable
 internal fun CategorySpendingRow(
     category: CategorySpendingTotal,
@@ -33,17 +37,27 @@ internal fun CategorySpendingRow(
     val max = category.maxMonthlyBudget
     val hasMax = max > 0L
     val amountLine = if (hasMax) "$spent of ${formatRand(max)}" else spent
+    val overLimit = hasMax && category.totalCents > max
+    val nearLimit = hasMax && !overLimit && max > 0L &&
+        category.totalCents >= (max * 85L / 100L)
     val barProgress = if (hasMax) {
-        (category.totalCents.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+        categoryLimitUsageFraction(category.totalCents, max)
     } else {
         categorySpendingFraction(category.totalCents, overallCents)
     }
     val colors = MaterialTheme.colorScheme
+    val barColor = when {
+        overLimit -> ProgressRed
+        nearLimit -> ProgressAmber
+        hasMax -> ProgressTeal
+        else -> colors.primary
+    }
+    val limitLine = if (hasMax) categoryLimitUsagePercentage(category.totalCents, max) else null
     Surface(
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
             // I read each row once instead of repeating the amount and bar separately.
             contentDescription = if (hasMax) {
-                "${category.categoryName}, $amountLine, $percentage of spending in this period"
+                "${category.categoryName}, $amountLine, ${limitLine ?: ""}, $percentage of spending in this period"
             } else {
                 "${category.categoryName}, $spent, $percentage of spending"
             }
@@ -64,6 +78,11 @@ internal fun CategorySpendingRow(
             }
             if (hasMax) {
                 Text(
+                    limitLine ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (overLimit) ProgressRed else colors.onSurfaceVariant,
+                )
+                Text(
                     "$percentage of spending in this period",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
@@ -74,7 +93,7 @@ internal fun CategorySpendingRow(
             LinearProgressIndicator(
                 progress = { barProgress },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
-                color = colors.primary,
+                color = barColor,
                 trackColor = colors.surfaceVariant,
                 strokeCap = StrokeCap.Round,
                 gapSize = 0.dp,

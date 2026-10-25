@@ -342,7 +342,7 @@ private fun ComparisonHeadline(basis: WorthBasis, savedCents: Long, item: WorthI
     ) {
         IconCircle(drawableRes = R.drawable.piggy_bank, size = 140.dp, iconSize = 90.dp)
         Text("=", fontSize = 36.sp, color = TextPrimary)
-        IconCircle(drawableRes = worthItemIconRes(item.id), monogram = item.name.take(1), size = 140.dp, iconSize = 90.dp)
+        IconCircle(drawableRes = worthItemDisplayIconRes(item), monogram = item.name.take(1), size = 140.dp, iconSize = 90.dp)
     }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -551,7 +551,7 @@ private fun ComparisonCard(item: WorthItem, label: String, onClick: () -> Unit) 
             .clickable(onClick = onClick)
             .padding(8.dp),
     ) {
-        val icon = worthItemIconRes(item.id)
+        val icon = worthItemDisplayIconRes(item)
         if (icon != null) {
             Image(
                 painter = painterResource(icon),

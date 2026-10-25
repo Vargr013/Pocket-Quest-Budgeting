@@ -11,6 +11,8 @@ import com.example.pocketquestbudgeting.data.BudgetGoalEntity
 import com.example.pocketquestbudgeting.data.CategoryEntity
 import com.example.pocketquestbudgeting.data.ExpenseEntity
 import com.example.pocketquestbudgeting.data.WorthCatalog
+import com.example.pocketquestbudgeting.data.WorthCategory
+import com.example.pocketquestbudgeting.data.WorthItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,6 +53,14 @@ internal fun achievementIconRes(definition: AchievementDefinition): Int = when (
     else -> R.drawable.achievement_first_steps
 }
 
+internal fun worthCategoryIconRes(category: WorthCategory): Int? = when (category) {
+    WorthCategory.ENTERTAINMENT -> R.drawable.worth_category_entertainment
+    WorthCategory.TECHNOLOGY -> R.drawable.worth_category_technology
+    WorthCategory.TRAVEL -> R.drawable.worth_category_travel
+    WorthCategory.VEHICLES -> R.drawable.worth_category_vehicles
+    else -> null
+}
+
 internal fun worthItemIconRes(itemId: String): Int? = when (itemId) {
     WorthCatalog.COFFEE -> R.drawable.achievement_coffee_collector
     WorthCatalog.BURGER -> R.drawable.achievement_burger_boss
@@ -60,6 +70,9 @@ internal fun worthItemIconRes(itemId: String): Int? = when (itemId) {
     WorthCatalog.CAR -> R.drawable.achievement_wheels_in_motion
     else -> null
 }
+
+internal fun worthItemDisplayIconRes(item: WorthItem): Int? =
+    worthItemIconRes(item.id) ?: worthCategoryIconRes(item.category)
 
 internal fun previewAchievementReport(): AchievementReport = Achievements.evaluate(
     AchievementInput(

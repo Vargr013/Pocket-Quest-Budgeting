@@ -251,7 +251,7 @@ fun AddExpenseScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("+", fontSize = 22.sp, color = Teal)
                     Spacer(Modifier.size(8.dp))
-                    Text(if (editing) "Edit expense" else "Add Money", fontSize = 20.sp, color = TextPrimary)
+                    Text(if (editing) "Edit expense" else "Add expense", fontSize = 20.sp, color = TextPrimary)
                 }
 
                 Text("Amount", fontSize = 15.sp, color = TextPrimary)
@@ -445,7 +445,7 @@ fun AddExpenseScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (saving) "Saving…" else if (editing) "Save changes" else "＋  Add Money",
+                    text = if (saving) "Saving…" else if (editing) "Save changes" else "＋  Add expense",
                     fontSize = 20.sp,
                 )
             }

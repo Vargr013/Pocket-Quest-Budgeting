@@ -21,3 +21,15 @@ internal fun categorySpendingFraction(cents: Long, totalCents: Long): Float {
     // I only used floating point for the bar, keeping the displayed money exact.
     return (cents.toDouble() / totalCents.toDouble()).toFloat().coerceIn(0f, 1f)
 }
+
+internal fun categoryLimitUsagePercentage(spentCents: Long, maxCents: Long): String {
+    if (maxCents <= 0L) return "—"
+    return BigDecimal.valueOf(spentCents).movePointRight(2)
+        .divide(BigDecimal.valueOf(maxCents), 0, RoundingMode.HALF_UP)
+        .toPlainString() + "% of limit"
+}
+
+internal fun categoryLimitUsageFraction(spentCents: Long, maxCents: Long): Float {
+    if (maxCents <= 0L) return 0f
+    return (spentCents.toFloat() / maxCents.toFloat()).coerceIn(0f, 1f)
+}
