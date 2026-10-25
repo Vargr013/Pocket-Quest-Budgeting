@@ -305,7 +305,7 @@ private fun DashboardCard(content: @Composable () -> Unit) {
 
 @Composable
 private fun CategoryProgressRow(row: CategoryMonthProgress) {
-    val overMax = row.maxMonthlyBudget > 0 && row.spent >= row.maxMonthlyBudget
+    val overMax = row.maxMonthlyBudget > 0 && row.spent > row.maxMonthlyBudget
     val underMin = row.minMonthlyBudget > 0 && row.spent < row.minMonthlyBudget
     val barColor = when {
         overMax -> ProgressRed

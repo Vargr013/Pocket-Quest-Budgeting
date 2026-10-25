@@ -31,15 +31,19 @@ internal fun CategorySpendingRow(
     category: CategorySpendingTotal,
     overallCents: Long,
     modifier: Modifier = Modifier,
+    showMonthlyBudget: Boolean = false,
 ) {
-    val percentage = categorySpendingPercentage(category.totalCents, overallCents)
     val spent = formatRand(category.totalCents)
     val max = category.maxMonthlyBudget
-    val hasMax = max > 0L
+    // I only compared against a monthly limit when the selected period is the current month.
+    val hasMax = showMonthlyBudget && max > 0L
+    val comparisonCents = if (hasMax) max else overallCents
+    val percentage = categorySpendingPercentage(category.totalCents, comparisonCents)
+    val periodShare = categorySpendingPercentage(category.totalCents, overallCents)
+    val progressLabel = if (hasMax) "$percentage of monthly limit" else "$percentage of spending in this period"
     val amountLine = if (hasMax) "$spent of ${formatRand(max)}" else spent
     val overLimit = hasMax && category.totalCents > max
-    val nearLimit = hasMax && !overLimit && max > 0L &&
-        category.totalCents >= (max * 85L / 100L)
+    val nearLimit = hasMax && !overLimit && category.totalCents >= (max * 85L / 100L)
     val barProgress = if (hasMax) {
         categoryLimitUsageFraction(category.totalCents, max)
     } else {
@@ -55,11 +59,10 @@ internal fun CategorySpendingRow(
     val limitLine = if (hasMax) categoryLimitUsagePercentage(category.totalCents, max) else null
     Surface(
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
-            // I read each row once instead of repeating the amount and bar separately.
             contentDescription = if (hasMax) {
-                "${category.categoryName}, $amountLine, ${limitLine ?: ""}, $percentage of spending in this period"
+                "${category.categoryName}, $amountLine, ${limitLine ?: ""}, $periodShare of spending in this period"
             } else {
-                "${category.categoryName}, $spent, $percentage of spending"
+                "${category.categoryName}, $amountLine, $progressLabel"
             }
         },
         shape = RoundedCornerShape(20.dp),
@@ -83,12 +86,12 @@ internal fun CategorySpendingRow(
                     color = if (overLimit) ProgressRed else colors.onSurfaceVariant,
                 )
                 Text(
-                    "$percentage of spending in this period",
+                    "$periodShare of spending in this period",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
                 )
             } else {
-                Text(percentage, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Text(progressLabel, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             LinearProgressIndicator(
                 progress = { barProgress },

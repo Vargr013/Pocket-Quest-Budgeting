@@ -3,10 +3,10 @@ package com.example.pocketquestbudgeting.ui
 import android.database.sqlite.SQLiteException
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF3F4944)
 private val Teal = Color(0xFF0F6B5C)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -148,16 +150,17 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
     ) {
         item {
             Column(modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
-                Box(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     // I added Back so this screen can return to the menu.
                     TextButton(
                         onClick = onBack,
                         modifier = Modifier
-                            .align(Alignment.CenterStart)
                             .heightIn(min = 48.dp),
                     ) {
                         Text("Back", color = Teal)
@@ -167,11 +170,8 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                         fontSize = 28.sp,
                         lineHeight = 34.sp,
                         color = TextPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(horizontal = 72.dp)
-                            .semantics { heading() },
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.semantics { heading() },
                     )
                 }
                 Text(
@@ -196,17 +196,17 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.semantics { heading() },
                     )
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
                             "all" to "All dates",
                             "week" to "Current week",
                             "month" to "Current month",
                         ).forEach { (value, label) ->
-                            FilterChip(
-                                selected = period == value,
+                            OutlinedButton(
                                 onClick = {
                                     if (value == "all") {
                                         period = "all"
@@ -217,18 +217,14 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                                         selectShortcut(value)
                                     }
                                 },
-                                label = {
-                                    Text(
-                                        label,
-                                        maxLines = 1,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 48.dp),
-                            )
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (period == value) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                                    contentColor = if (period == value) MaterialTheme.colorScheme.onSecondaryContainer else TextPrimary,
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.heightIn(min = 48.dp).semantics { selected = period == value },
+                            ) { Text(label) }
                         }
                     }
                     OutlinedButton(
@@ -369,6 +365,7 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                         category,
                         totalCents,
                         Modifier.widthIn(max = 720.dp),
+                        showMonthlyBudget = period == "month",
                     )
                 }
             }
