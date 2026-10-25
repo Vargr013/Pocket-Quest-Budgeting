@@ -39,15 +39,15 @@ internal fun AccountContent(session: AccountSession, modifier: Modifier = Modifi
         } else {
             Column(modifier) {
                 if (state.offline) Text("Offline: showing this account's saved local data.")
-                SyncStatus(account)
-                AccountNavigation(account.localUserId, onLogout = { session.logout() }, modifier = Modifier.weight(1f))
+                AccountNavigation(account.localUserId, onLogout = { session.logout() }, modifier = Modifier.weight(1f),
+                    syncStatus = { SyncStatus(account) })
             }
         }
     }
 }
 
 @Composable
-private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modifier) {
+private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modifier, syncStatus: @Composable () -> Unit) {
     // I used a navigation controller and host to manage the screen routes (Google, 2026e).
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "dashboard", modifier = modifier) {
@@ -72,6 +72,7 @@ private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modi
                 onAddSavingGoal = { navController.navigate("add_saving_goal") },
                 onRemoveSavingGoal = { navController.navigate("remove_saving_goal") },
                 onUpdateSavingGoal = { navController.navigate("update_saving_goal") },
+                syncStatus = syncStatus,
 
                 // I ended the session so the login graph replaced this account.
                 onLogout = onLogout,

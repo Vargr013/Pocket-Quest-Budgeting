@@ -7,10 +7,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +39,9 @@ fun MenuScreen(onBack: () -> Unit,
                onAddSavingGoal: () -> Unit,
                onRemoveSavingGoal: () -> Unit,
                onLogout: () -> Unit,
-               onUpdateSavingGoal: () -> Unit = {},) {
+               onUpdateSavingGoal: () -> Unit = {},
+               syncStatus: (@Composable () -> Unit)? = null,) {
+    var showSyncStatus by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -48,7 +56,7 @@ fun MenuScreen(onBack: () -> Unit,
                 .fillMaxWidth()
                 .align(Alignment.Center),
         )
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
         TextButton(onClick = onBack) {
             Text("Back")
         }
@@ -91,6 +99,12 @@ fun MenuScreen(onBack: () -> Unit,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Achievements")
+        }
+        if (syncStatus != null) {
+            TextButton(onClick = { showSyncStatus = !showSyncStatus }) {
+                Text(if (showSyncStatus) "Hide sync status" else "Sync status")
+            }
+            if (showSyncStatus) syncStatus()
         }
         TextButton(onClick = onLogout) {
             Text("Log out")

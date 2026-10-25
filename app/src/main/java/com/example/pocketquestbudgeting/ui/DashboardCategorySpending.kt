@@ -42,10 +42,15 @@ internal fun DashboardCategorySpending(userId: Long, onCategories: () -> Unit, o
     }
 
     // I cleared the previous result when the month or refresh changed.
-    var categories by remember(month, reload) { mutableStateOf<List<CategorySpendingTotal>>(emptyList()) }
-    var totalCents by remember(month, reload) { mutableStateOf(0L) }
-    var loading by remember(month, reload) { mutableStateOf(true) }
-    var error by remember(month, reload) { mutableStateOf<String?>(null) }
+    var categories by remember(userId, month, reload) { mutableStateOf<List<CategorySpendingTotal>>(emptyList()) }
+    var totalCents by remember(userId, month, reload) { mutableStateOf(0L) }
+    var loading by remember(userId, month, reload) { mutableStateOf(true) }
+    var error by remember(userId, month, reload) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(userId) {
+        DatabaseProvider.get(context).invalidationTracker
+            .createFlow("expenses", "categories", emitInitialState = false).collect { reload++ }
+    }
 
     LaunchedEffect(userId, month, reload) {
         val requestedMonth = month
