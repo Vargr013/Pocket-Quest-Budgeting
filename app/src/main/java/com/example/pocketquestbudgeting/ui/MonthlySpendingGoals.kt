@@ -2,7 +2,10 @@ package com.example.pocketquestbudgeting.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,6 +29,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -34,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.room.withTransaction
 import com.example.pocketquestbudgeting.data.AccountSessions
 import com.example.pocketquestbudgeting.data.MonthlyGoalSyncs
 import kotlinx.coroutines.flow.collectLatest
@@ -62,12 +70,13 @@ internal fun MonthlySpendingGoals(userId: Long) {
     val context = LocalContext.current
     val inspecting = LocalInspectionMode.current
     val scope = rememberCoroutineScope()
-    var month by remember { mutableStateOf(historyShortcutRange("month")) }
+    var previousMonth by rememberSaveable(userId) { mutableStateOf(false) }
+    var month by remember(userId) { mutableStateOf(historyShortcutRange("month")) }
     var reload by remember { mutableStateOf(0) }
     var goal by remember(userId, month, reload) { mutableStateOf<BudgetGoalEntity?>(null) }
-    var spentCents by remember(month, reload) { mutableStateOf(0L) }    // I totalled this month's expenses so the dashboard can show progress against the monthly limits.
-    var loading by remember(month, reload) { mutableStateOf(!inspecting) }
-    var loadError by remember(month, reload) { mutableStateOf<String?>(null) }
+    var spentCents by remember(userId, month, reload) { mutableStateOf(0L) }
+    var loading by remember(userId, month, reload) { mutableStateOf(!inspecting) }
+    var loadError by remember(userId, month, reload) { mutableStateOf<String?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
     var draftGoalId by rememberSaveable(userId) { mutableStateOf(0L) }
     var reviewedMinimum by rememberSaveable(userId) { mutableStateOf(0L) }
@@ -83,7 +92,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
     fun refreshMonth() {
         val current = historyShortcutRange("month")
         if (editing && draftStart != current.start) expired = true
-        month = current
+        month = if (previousMonth) previousMonthRange() else current
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -95,22 +104,23 @@ internal fun MonthlySpendingGoals(userId: Long) {
         if (!inspecting) DatabaseProvider.get(context).invalidationTracker
             .createFlow("budget_goals", "expenses", emitInitialState = false).collectLatest { reload++ }
     }
-    LaunchedEffect(userId, month, reload) {
+    LaunchedEffect(userId, previousMonth, month, reload) {
         if (inspecting) return@LaunchedEffect
         val requestedMonth = month
         val requestedReload = reload
         try {
             val db = DatabaseProvider.get(context)
-            val saved = db.budgetGoalDao().getForMonth(userId, requestedMonth.start, requestedMonth.end)
-            val spent = db.expenseDao().getForUserInRange(
-                userId,
-                requestedMonth.start,
-                requestedMonth.end,
-            ).sumOf { it.amount }
+            // I read the selected month's goals and spending together so both describe the same period.
+            val (saved, spent) = db.withTransaction {
+                db.budgetGoalDao().getForMonth(userId, requestedMonth.start, requestedMonth.end) to
+                    db.expenseDao().getForUserInRange(userId, requestedMonth.start, requestedMonth.end)
+                        .fold(0L) { total, expense -> Math.addExact(total, expense.amount) }
+            }
             coroutineContext.ensureActive()
             if (month != requestedMonth || reload != requestedReload) return@LaunchedEffect
             goal = saved
             spentCents = spent
+            loadError = null
             loading = false
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -130,7 +140,19 @@ internal fun MonthlySpendingGoals(userId: Long) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Monthly spending goals", fontSize = 20.sp, color = TextPrimary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !previousMonth, onClick = {
+                    previousMonth = false
+                    refreshMonth()
+                }, label = { Text("This month") }, modifier = Modifier.heightIn(min = 48.dp))
+                FilterChip(selected = previousMonth, onClick = {
+                    previousMonth = true
+                    refreshMonth()
+                }, label = { Text("Last month") }, modifier = Modifier.heightIn(min = 48.dp))
+            }
             Text("Month: ${month.start.take(7)}", fontSize = 15.sp, color = TextSecondary)
+            Text("${month.start} to ${month.end}", fontSize = 13.sp, color = TextSecondary)
+            if (previousMonth) Text("Completed month", color = TextSecondary, fontSize = 15.sp)
             when {
                 loading -> Text("Loading goals...", color = TextSecondary)
                 loadError != null -> {
@@ -147,7 +169,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
                     }
                     val minLimit = saved?.minimumAmount ?: 0L
                     val maxLimit = saved?.maximumAmount ?: 0L
-                    val overMax = maxLimit > 0L && spentCents >= maxLimit
+                    val overMax = maxLimit > 0L && spentCents > maxLimit
                     val underMin = minLimit > 0L && spentCents < minLimit
                     val barColor = when {
                         overMax -> ProgressRed
@@ -173,22 +195,30 @@ internal fun MonthlySpendingGoals(userId: Long) {
                             fontSize = 15.sp,
                         )
                     }
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp),
-                        color = barColor,
-                        trackColor = ProgressTrack,
-                        strokeCap = StrokeCap.Round,
-                    )
+                    // I marked the minimum on the same scale as the maximum so the target range is visible.
+                    Box(Modifier.fillMaxWidth().height(20.dp).drawWithContent {
+                        drawContent()
+                        if (maxLimit > 0L && minLimit > 0L) {
+                            val x = (minLimit.toFloat() / maxLimit).coerceIn(0f, 1f) * (size.width - 2.dp.toPx()) + 1.dp.toPx()
+                            drawLine(TextPrimary, Offset(x, 0f), Offset(x, size.height), strokeWidth = 2.dp.toPx())
+                        }
+                    }) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).align(Alignment.Center),
+                            color = barColor,
+                            trackColor = ProgressTrack,
+                            strokeCap = StrokeCap.Round,
+                        )
+                    }
+                    if (maxLimit > 0L && minLimit > 0L) Text("Vertical marker: monthly minimum", color = TextSecondary, fontSize = 13.sp)
                     when {
                         overMax -> Text("Over the monthly maximum.", color = ProgressRed)
                         underMin -> Text("Below the monthly minimum.", color = ProgressAmber)
                         saved != null -> Text("Within the monthly range.", color = ProgressTeal)
                     }
 
-                    TextButton(onClick = {
+                    if (!previousMonth) TextButton(onClick = {
                         val current = historyShortcutRange("month")
                         if (current != month) {
                             month = current

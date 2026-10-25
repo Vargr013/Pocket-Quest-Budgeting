@@ -27,26 +27,22 @@ internal fun CategorySpendingRow(
     category: CategorySpendingTotal,
     overallCents: Long,
     modifier: Modifier = Modifier,
+    showMonthlyBudget: Boolean = false,
 ) {
-    val percentage = categorySpendingPercentage(category.totalCents, overallCents)
     val spent = formatRand(category.totalCents)
     val max = category.maxMonthlyBudget
-    val hasMax = max > 0L
+    // I only compared against a monthly limit when the selected period is the current month.
+    val hasMax = showMonthlyBudget && max > 0L
+    val comparisonCents = if (hasMax) max else overallCents
+    val percentage = categorySpendingPercentage(category.totalCents, comparisonCents)
+    val progressLabel = if (hasMax) "$percentage of monthly limit" else "$percentage of spending in this period"
     val amountLine = if (hasMax) "$spent of ${formatRand(max)}" else spent
-    val barProgress = if (hasMax) {
-        (category.totalCents.toFloat() / max.toFloat()).coerceIn(0f, 1f)
-    } else {
-        categorySpendingFraction(category.totalCents, overallCents)
-    }
+    val barProgress = categorySpendingFraction(category.totalCents, comparisonCents)
     val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
             // I read each row once instead of repeating the amount and bar separately.
-            contentDescription = if (hasMax) {
-                "${category.categoryName}, $amountLine, $percentage of spending in this period"
-            } else {
-                "${category.categoryName}, $spent, $percentage of spending"
-            }
+            contentDescription = "${category.categoryName}, $amountLine, $progressLabel"
         },
         shape = RoundedCornerShape(20.dp),
         color = Color(0xFFE8EEEC),
@@ -62,15 +58,7 @@ internal fun CategorySpendingRow(
                     textAlign = TextAlign.End,
                 )
             }
-            if (hasMax) {
-                Text(
-                    "$percentage of spending in this period",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
-            } else {
-                Text(percentage, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-            }
+            Text(progressLabel, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             LinearProgressIndicator(
                 progress = { barProgress },
                 modifier = Modifier.fillMaxWidth().height(6.dp),

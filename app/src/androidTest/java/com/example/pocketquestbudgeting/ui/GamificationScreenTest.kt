@@ -29,6 +29,28 @@ import org.junit.runner.RunWith
 class GamificationScreenTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun expandedGroupsKeepHiddenBadgesAndTheirDetailsReachable(): Unit = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val db = DatabaseProvider.get(context)
+        val owner = db.userDao().insert(UserEntity(username = "BadgeGroups${UUID.randomUUID().toString().take(8)}"))
+        var showing by mutableStateOf(true)
+        try {
+            compose.setContent { PocketQuestTheme { if (showing) AchievementsScreen(owner, {}) } }
+            compose.waitUntil(10000) { compose.onAllNodesWithText("First Steps").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Dedicated Tracker").assertDoesNotExist()
+            compose.onAllNodesWithText("View more")[0].performScrollTo().performClick()
+            compose.onNodeWithText("Dedicated Tracker").performScrollTo().performClick()
+            compose.onNodeWithText("Log or review your expenses on 50 different days.").assertExists()
+            compose.onNodeWithText("Close").performClick()
+            compose.onNodeWithText("View less").performScrollTo().performClick()
+            compose.onNodeWithText("Dedicated Tracker").assertDoesNotExist()
+        } finally {
+            compose.runOnIdle { showing = false }
+            compose.waitForIdle()
+            db.openHelper.writableDatabase.execSQL("DELETE FROM users WHERE id = ?", arrayOf(owner))
+        }
+    }
+
     @Test fun customItemsSaveAcrossNavigationAndEarnedBadgesOpenTheirDetails() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val db = DatabaseProvider.get(context)
