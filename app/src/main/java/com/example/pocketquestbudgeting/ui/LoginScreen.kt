@@ -4,14 +4,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,9 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -83,9 +91,10 @@ fun LoginScreen(
             .padding(bottom = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier.fillMaxWidth(),
         ) {
+            val titleScale = (maxWidth.value / (393f * LocalDensity.current.fontScale)).coerceIn(0.45f, 1f)
             Image(
                 painter = painterResource(R.drawable.piggy_login_logo),
                 contentDescription = null,
@@ -107,8 +116,8 @@ fun LoginScreen(
                 Text(
                     text = "Pocket Quest",
                     fontFamily = PlayfairDisplay,
-                    fontSize = 90.sp,
-                    lineHeight = 75.sp,
+                    fontSize = (90 * titleScale).sp,
+                    lineHeight = (75 * titleScale).sp,
                     color = TextPrimary,
                     textAlign = TextAlign.Center,
                 )
@@ -118,20 +127,21 @@ fun LoginScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .width(34.dp)
+                            .width((34 * titleScale).dp)
                             .height(7.dp)
                             .background(TextPrimary),
                     )
                     Text(
                         text = "Budgeting",
                         fontFamily = PlayfairDisplay,
-                        fontSize = 55.sp,
+                        fontSize = (55 * titleScale).sp,
                         color = BudgetingCoral,
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f, fill = false).padding(horizontal = 10.dp),
                     )
                     Box(
                         modifier = Modifier
-                            .width(34.dp)
+                            .width((34 * titleScale).dp)
                             .height(7.dp)
                             .background(TextPrimary),
                     )
@@ -151,6 +161,7 @@ fun LoginScreen(
                         value = username,
                         onValueChange = { username = it },
                         placeholder = "Empty",
+                        label = "Username",
                         enabled = !busy,
                     )
 
@@ -161,7 +172,9 @@ fun LoginScreen(
                         value = password,
                         onValueChange = { password = it },
                         placeholder = "Empty",
+                        label = "Password",
                         isPassword = true,
+                        imeAction = ImeAction.Done,
                         enabled = !busy,
                     )
 
@@ -174,9 +187,13 @@ fun LoginScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable(enabled = !busy) { rememberMe = !rememberMe },
+                            modifier = Modifier
+                                .weight(1f)
+                                .toggleable(value = rememberMe, enabled = !busy, role = Role.Checkbox,
+                                    onValueChange = { rememberMe = it })
+                                .heightIn(min = 48.dp),
                         ) {
-                            Text("Remember Me", fontSize = 11.sp, color = LinkBlue)
+                            Text("Remember Me", fontSize = 11.sp, color = LinkBlue, modifier = Modifier.weight(1f, fill = false))
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
@@ -189,7 +206,9 @@ fun LoginScreen(
                             text = "Forgot Password",
                             fontSize = 11.sp,
                             color = LinkBlue,
-                            modifier = Modifier.clickable(onClick = onForgotPassword),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f).clickable(enabled = !busy, onClick = onForgotPassword)
+                                .heightIn(min = 48.dp).padding(vertical = 16.dp),
                         )
                     }
 
@@ -221,7 +240,7 @@ fun LoginScreen(
                             .align(Alignment.CenterHorizontally)
                             .widthIn(max = 228.dp)
                             .fillMaxWidth()
-                            .height(39.dp),
+                            .heightIn(min = 48.dp),
                     ) {
                         Text(if (busy) "Logging in..." else "Login", fontSize = 20.sp)
                     }
@@ -232,8 +251,9 @@ fun LoginScreen(
                         color = LinkBlue,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .padding(top = 16.dp)
-                            .clickable(enabled = !busy, onClick = onRegister),
+                            .clickable(enabled = !busy, onClick = onRegister)
+                            .heightIn(min = 48.dp)
+                            .padding(vertical = 16.dp),
                     )
 
                     if (busy) TextButton(onClick = onCancel) { Text("Cancel login") }
@@ -246,7 +266,9 @@ fun LoginScreen(
                         color = LinkBlue,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .clickable(onClick = onNeedHelp),
+                            .clickable(enabled = !busy, onClick = onNeedHelp)
+                            .heightIn(min = 48.dp)
+                            .padding(vertical = 16.dp),
                     )
                 }
             }
@@ -259,14 +281,16 @@ private fun LoginPlainField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
+    label: String,
     isPassword: Boolean = false,
     enabled: Boolean = true,
     height: Dp = 35.dp,
+    imeAction: ImeAction = ImeAction.Next,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(height)
+            .heightIn(min = height.coerceAtLeast(48.dp))
             .background(FieldGray, FieldShape)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.CenterStart,
@@ -291,9 +315,15 @@ private fun LoginPlainField(
             },
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+                imeAction = imeAction,
             ),
+            keyboardActions = mobileKeyboardActions(),
             cursorBrush = SolidColor(LoginTeal),
-            modifier = Modifier.fillMaxWidth(),
+            decorationBox = { innerTextField ->
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) { innerTextField() }
+            },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .semantics { contentDescription = label },
         )
     }
 }

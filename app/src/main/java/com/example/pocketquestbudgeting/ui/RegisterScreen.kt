@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -91,6 +93,8 @@ fun RegisterScreen(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text(stringResource(R.string.username)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = mobileKeyboardActions(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -102,7 +106,8 @@ fun RegisterScreen(
                 label = { Text(stringResource(R.string.password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                keyboardActions = mobileKeyboardActions(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -113,7 +118,8 @@ fun RegisterScreen(
                 label = { Text(stringResource(R.string.confirm_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = mobileKeyboardActions(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -145,7 +151,7 @@ fun RegisterScreen(
                 modifier = Modifier
                     .widthIn(max = 228.dp)
                     .fillMaxWidth()
-                    .height(39.dp),
+                    .heightIn(min = 48.dp),
             ) {
                 Text(text = if (busy) "Registering..." else stringResource(R.string.register))
             }
@@ -159,8 +165,9 @@ fun RegisterScreen(
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
                 modifier = Modifier
-                    .padding(top = 8.dp)
-                    .clickable(enabled = !busy, onClick = onBackToLogin),
+                    .clickable(enabled = !busy, onClick = onBackToLogin)
+                    .heightIn(min = 48.dp)
+                    .padding(vertical = 16.dp),
             )
         }
     }

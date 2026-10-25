@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -420,6 +421,8 @@ private fun CustomItemsCard(
             value = name,
             onValueChange = { name = it.take(MAX_CUSTOM_NAME) },
             label = { Text("Item name") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = mobileKeyboardActions(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -430,7 +433,8 @@ private fun CustomItemsCard(
             onValueChange = { value = it },
             label = { Text("Estimated value (R)") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = mobileKeyboardActions(),
             modifier = Modifier.fillMaxWidth(),
         )
         formError?.let {

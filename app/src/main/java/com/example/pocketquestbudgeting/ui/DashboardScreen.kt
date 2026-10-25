@@ -42,6 +42,8 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -82,9 +84,11 @@ fun DashboardScreen(
     val inspecting = LocalInspectionMode.current
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var categoryRows by remember { mutableStateOf(if (inspecting) previewCategoryRows else emptyList()) }
-    var categoriesLoading by remember { mutableStateOf(!inspecting) }
-    var categoriesError by remember { mutableStateOf<String?>(null) }
+    var categoryRows by remember(userId) { mutableStateOf(if (inspecting) previewCategoryRows else emptyList()) }
+    var categoriesLoading by remember(userId) { mutableStateOf(!inspecting) }
+    var categoriesError by remember(userId) { mutableStateOf<String?>(null) }
+    var dashboardData by remember(userId) { mutableStateOf<DashboardData?>(null) }
+    var dashboardError by remember(userId) { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(1) }
     var seenResume by remember { mutableStateOf(false) }
 
@@ -105,15 +109,32 @@ fun DashboardScreen(
             try {
                 val db = DatabaseProvider.get(context)
 
-                val (monthStart, monthEnd) = currentMonthBounds()
-                categoryRows = db.categoryDao().getMonthProgress(userId, monthStart, monthEnd)
-                categoriesError = null
+                db.invalidationTracker.createFlow("categories", "expenses").collect {
+                    val (monthStart, monthEnd) = currentMonthBounds()
+                    categoryRows = db.categoryDao().getMonthProgress(userId, monthStart, monthEnd)
+                    categoriesError = null
+                    categoriesLoading = false
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 categoriesError = "Could not load category budgets."
             } finally {
                 categoriesLoading = false
+            }
+        }
+        LaunchedEffect(userId, reload) {
+            dashboardError = null
+            try {
+                val db = DatabaseProvider.get(context)
+                db.invalidationTracker.createFlow("expenses", "categories", "savings_goals", "savings_contributions").collect {
+                    dashboardData = loadDashboardData(db, userId)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                dashboardData = null
+                dashboardError = "Could not load your dashboard."
             }
         }
     }
@@ -137,7 +158,7 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onMenu) {
+                TextButton(onClick = onMenu, modifier = Modifier.semantics { contentDescription = "Menu" }) {
                     Text("☰", fontSize = 28.sp, color = Teal)
                 }
 
@@ -146,7 +167,7 @@ fun DashboardScreen(
                     fontSize = 36.sp,
                     lineHeight = 44.sp,
                     color = TextPrimary,
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
             }
 
@@ -159,9 +180,16 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Current Balance", fontSize = 20.sp, color = TextPrimary)
-                    Text("R12 654,00", fontSize = 20.sp, color = TextPrimary)
+                    Text("Current Balance", fontSize = 20.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                    Text("Not available", fontSize = 20.sp, color = TextPrimary, modifier = Modifier.weight(1f))
                 }
+                Text("No account balance recorded.", color = TextSecondary, fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp))
+            }
+
+            dashboardError?.let {
+                Text(it, color = ProgressRed)
+                TextButton(onClick = { reload++ }) { Text("Retry dashboard") }
             }
 
             DashboardCard {
@@ -208,17 +236,24 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Recent Expenses", fontSize = 20.sp, color = TextPrimary)
+                        Text("Recent Expenses", fontSize = 20.sp, color = TextPrimary, modifier = Modifier.weight(1f))
                         TextButton(onClick = onHistory) {
                             Text("History", color = Teal)
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    ExpenseRow("Coffee", "Today - Entertainment", "R45")
-                    Spacer(Modifier.height(8.dp))
-                    ExpenseRow("Pick n Pay", "Yesterday - Groceries", "R690")
-                    Spacer(Modifier.height(8.dp))
-                    ExpenseRow("Uber", "Yesterday - Transport", "R85")
+                    val data = dashboardData
+                    when {
+                        dashboardError != null -> Text("Recent expenses unavailable.", color = TextSecondary)
+                        data == null && !inspecting -> Text("Loading expenses...", color = TextSecondary)
+                        data == null || data.recentExpenses.isEmpty() -> Text("No expenses yet.", color = TextSecondary)
+                        else -> data.recentExpenses.forEachIndexed { index, expense ->
+                            if (index > 0) Spacer(Modifier.height(8.dp))
+                            ExpenseRow(expense.description,
+                                "${expense.date} - ${data.categoryNames[expense.categoryId] ?: "Category unavailable"}",
+                                formatBudgetAmount(expense.amount))
+                        }
+                    }
                 }
             }
 
@@ -227,9 +262,17 @@ fun DashboardScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Saving Goals", fontSize = 20.sp, color = TextPrimary)
                     Spacer(Modifier.height(12.dp))
-                    SavingGoalRow("Emergency Fund", "R4 000 of R10 000")
-                    Spacer(Modifier.height(8.dp))
-                    SavingGoalRow("Holiday", "R1 200 of R5 000")
+                    val data = dashboardData
+                    when {
+                        dashboardError != null -> Text("Saving goals unavailable.", color = TextSecondary)
+                        data == null && !inspecting -> Text("Loading saving goals...", color = TextSecondary)
+                        data == null || data.savings.isEmpty() -> Text("No active saving goals yet.", color = TextSecondary)
+                        else -> data.savings.forEachIndexed { index, saving ->
+                            if (index > 0) Spacer(Modifier.height(8.dp))
+                            SavingGoalRow(saving.goal.name,
+                                "${formatBudgetAmount(saving.savedCents)} of ${formatBudgetAmount(saving.goal.targetCents)}")
+                        }
+                    }
                 }
             }
         }
@@ -241,6 +284,7 @@ fun DashboardScreen(
             contentColor = Color.White,
             shape = CircleShape,
             modifier = Modifier
+                .semantics { contentDescription = "Add expense" }
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 24.dp),
         ) {
@@ -359,7 +403,7 @@ private fun ExpenseRow(title: String, subtitle: String, amount: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
             Text(title, fontSize = 15.sp, color = TextPrimary)
             Text(subtitle, fontSize = 10.sp, color = TextSecondary)
         }

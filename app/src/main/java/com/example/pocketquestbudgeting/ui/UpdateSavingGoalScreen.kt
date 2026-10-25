@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -204,6 +206,7 @@ fun UpdateSavingGoalScreen(userId: Long = 0, onBack: () -> Unit = {}, session: A
                     value = note,
                     onValueChange = { note = it }, enabled = !saving,
                     placeholder = "Optional goal note",
+                    imeAction = ImeAction.Done,
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -249,7 +252,7 @@ fun UpdateSavingGoalScreen(userId: Long = 0, onBack: () -> Unit = {}, session: A
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 315.dp)
-                .height(41.dp),
+                .heightIn(min = 48.dp),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -271,7 +274,7 @@ private fun AmountField(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(35.dp)
+            .heightIn(min = 48.dp)
             .background(FieldBg, CardShape),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -282,7 +285,7 @@ private fun AmountField(
                     RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                 )
                 .padding(horizontal = 14.dp)
-                .height(35.dp),
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text("R", fontSize = 16.sp, color = TextPrimary)
@@ -309,10 +312,11 @@ private fun PlainField(
     background: Color = FieldBgSoft,
     height: Dp = 35.dp,
     keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Next,
 ) {
     Box(
         modifier = modifier
-            .height(height)
+            .heightIn(min = height.coerceAtLeast(48.dp))
             .background(background, CardShape)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.CenterStart,
@@ -330,9 +334,13 @@ private fun PlainField(
                 color = TextPrimary,
                 lineHeight = 12.sp,
             ),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+            keyboardActions = mobileKeyboardActions(),
             cursorBrush = SolidColor(Teal),
-            modifier = Modifier.fillMaxWidth(),
+            decorationBox = { innerTextField ->
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) { innerTextField() }
+            },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         )
     }
 }

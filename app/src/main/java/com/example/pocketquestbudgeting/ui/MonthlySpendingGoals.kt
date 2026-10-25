@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -227,7 +228,8 @@ internal fun MonthlySpendingGoals(userId: Long) {
                         singleLine = true,
                         enabled = !saving && !expired,
                         isError = saveError != null,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                        keyboardActions = mobileKeyboardActions(),
                     )
                     OutlinedTextField(
                         value = maximum,
@@ -236,7 +238,8 @@ internal fun MonthlySpendingGoals(userId: Long) {
                         singleLine = true,
                         enabled = !saving && !expired,
                         isError = saveError != null,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                        keyboardActions = mobileKeyboardActions(),
                     )
                     Text("Use a dot for decimals, e.g. 12.34. Zero is allowed.")
                     if (expired) {
