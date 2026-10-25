@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pocketquestbudgeting.data.CategorySpendingTotal
 
@@ -28,12 +29,24 @@ internal fun CategorySpendingRow(
     modifier: Modifier = Modifier,
 ) {
     val percentage = categorySpendingPercentage(category.totalCents, overallCents)
-    val amount = formatRand(category.totalCents)
+    val spent = formatRand(category.totalCents)
+    val max = category.maxMonthlyBudget
+    val hasMax = max > 0L
+    val amountLine = if (hasMax) "$spent of ${formatRand(max)}" else spent
+    val barProgress = if (hasMax) {
+        (category.totalCents.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+    } else {
+        categorySpendingFraction(category.totalCents, overallCents)
+    }
     val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
             // I read each row once instead of repeating the amount and bar separately.
-            contentDescription = "${category.categoryName}, $amount, $percentage of spending"
+            contentDescription = if (hasMax) {
+                "${category.categoryName}, $amountLine, $percentage of spending in this period"
+            } else {
+                "${category.categoryName}, $spent, $percentage of spending"
+            }
         },
         shape = RoundedCornerShape(20.dp),
         color = Color(0xFFE8EEEC),
@@ -42,11 +55,24 @@ internal fun CategorySpendingRow(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 Text(category.categoryName, modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                Text(percentage, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Text(
+                    amountLine,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurface,
+                    textAlign = TextAlign.End,
+                )
             }
-            Text(amount, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+            if (hasMax) {
+                Text(
+                    "$percentage of spending in this period",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+            } else {
+                Text(percentage, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
             LinearProgressIndicator(
-                progress = { categorySpendingFraction(category.totalCents, overallCents) },
+                progress = { barProgress },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = colors.primary,
                 trackColor = colors.surfaceVariant,

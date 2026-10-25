@@ -11,7 +11,8 @@ interface CategoryDao {
     // I used SUM to total the stored cents for each category (SQLite, 2025).
     @Query("""
         SELECT c.id AS categoryId, c.name AS categoryName,
-            COALESCE(SUM(e.amount), 0) AS totalCents
+            COALESCE(SUM(e.amount), 0) AS totalCents,
+            c.maxMonthlyBudget AS maxMonthlyBudget
         FROM categories AS c
         LEFT JOIN expenses AS e ON e.categoryId = c.id AND e.userId = :userId AND e.isDeleted = 0
             AND (:startDate IS NULL OR e.date >= :startDate)

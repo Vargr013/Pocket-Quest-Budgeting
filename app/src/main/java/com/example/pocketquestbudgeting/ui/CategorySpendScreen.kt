@@ -5,9 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -56,7 +55,6 @@ private val TextPrimary = Color(0xFF1A2B28)
 private val TextSecondary = Color(0xFF3F4944)
 private val Teal = Color(0xFF0F6B5C)
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -198,7 +196,10 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.semantics { heading() },
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         listOf(
                             "all" to "All dates",
                             "week" to "Current week",
@@ -216,8 +217,17 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                                         selectShortcut(value)
                                     }
                                 },
-                                label = { Text(label) },
-                                modifier = Modifier.heightIn(min = 48.dp),
+                                label = {
+                                    Text(
+                                        label,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 48.dp),
                             )
                         }
                     }
@@ -340,11 +350,6 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                             style = MaterialTheme.typography.titleLarge,
                             color = TextPrimary,
                             modifier = Modifier.semantics { heading() },
-                        )
-                        Text(
-                            "Each percentage is a share of spending in this period.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary,
                         )
                         if (categories.isEmpty()) {
                             Text(

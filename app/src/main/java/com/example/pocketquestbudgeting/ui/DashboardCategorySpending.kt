@@ -95,8 +95,6 @@ internal fun DashboardCategorySpending(userId: Long, onCategories: () -> Unit, o
             error != null -> SpendingLoadState(message = error, onRetry = { reload++ })
             else -> {
                 SpendingTotalCard(totalCents, "Current month")
-                Text("Share of this month's spending", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (categories.isEmpty()) {
                     Text("No categories yet. Add one using Manage categories.")
                 } else if (totalCents == 0L) {

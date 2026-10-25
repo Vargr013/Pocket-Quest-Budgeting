@@ -199,6 +199,8 @@ private fun StreakCard(report: AchievementReport) {
 
 @Composable
 private fun BadgesCard(report: AchievementReport, onSelect: (AchievementProgress) -> Unit) {
+    var expandedGroups by remember { mutableStateOf(setOf<AchievementGroup>()) }
+
     AchievementCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -215,21 +217,46 @@ private fun BadgesCard(report: AchievementReport, onSelect: (AchievementProgress
         AchievementGroup.entries.forEach { group ->
             val badges = report.progress.filter { it.definition.group == group }
             if (badges.isEmpty()) return@forEach
+            val rows = badges.chunked(3)
+            val expanded = group in expandedGroups
             Spacer(modifier = Modifier.height(16.dp))
             Text(group.label, fontSize = 15.sp, color = Teal)
             Spacer(modifier = Modifier.height(8.dp))
-            badges.chunked(3).forEach { row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    row.forEach { BadgeTile(it, onSelect) }
-                    repeat(3 - row.size) { Spacer(modifier = Modifier.width(96.dp)) }
+            BadgeGridRow(rows.first(), onSelect)
+            if (rows.size > 1) {
+                if (expanded) {
+                    rows.drop(1).forEach { row ->
+                        BadgeGridRow(row, onSelect)
+                    }
+                    TextButton(
+                        onClick = { expandedGroups = expandedGroups - group },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("View less", color = Teal)
+                    }
+                } else {
+                    TextButton(
+                        onClick = { expandedGroups = expandedGroups + group },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("View more", color = Teal)
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BadgeGridRow(row: List<AchievementProgress>, onSelect: (AchievementProgress) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        row.forEach { BadgeTile(it, onSelect) }
+        repeat(3 - row.size) { Spacer(modifier = Modifier.width(96.dp)) }
     }
 }
 
