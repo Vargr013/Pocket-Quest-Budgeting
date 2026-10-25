@@ -62,10 +62,11 @@ private val TextSecondary = Color(0xFF6B7C78)
 private val CardWhite = Color(0xFFFFFFFF)
 private val PanelBg = Color(0xFFE8EEEC)
 private val Teal = Color(0xFF0F6B5C)
-private val BadgeGray = Color(0xFFC4C4C4)
+private val AccentCoral = Color(0xFFE07A5F)
+private val BadgeLocked = Color(0xFFE8EEEC)
 private val BadgeEarned = Color(0xFFCFE8E3)
-private val ProgressTrack = Color(0xFF5E5E5E)
-private val ProgressFill = Color(0xFFE07A5F)
+private val ProgressTrack = Color(0xFFD9E2DF)
+private val ProgressFill = AccentCoral
 private val CardShape = RoundedCornerShape(20.dp)
 
 @Composable
@@ -179,7 +180,7 @@ private fun StreakCard(report: AchievementReport) {
                     text = "${report.currentStreak} ${if (report.currentStreak == 1) "day" else "days"}",
                     fontSize = 40.sp,
                     lineHeight = 48.sp,
-                    color = TextPrimary,
+                    color = AccentCoral,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -191,7 +192,7 @@ private fun StreakCard(report: AchievementReport) {
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            BadgeIcon(size = 100.dp, drawableRes = R.drawable.piggy_bank)
+            BadgeIcon(size = 100.dp, drawableRes = R.drawable.achievement_warming_up)
         }
     }
 }
@@ -243,7 +244,6 @@ private fun BadgeTile(progress: AchievementProgress, onSelect: (AchievementProgr
         BadgeIcon(
             size = 72.dp,
             drawableRes = achievementIconRes(progress.definition),
-            monogram = progress.definition.title.take(1),
             locked = !progress.earned,
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -286,7 +286,6 @@ internal fun NextUnlockPanel(next: AchievementProgress) {
             BadgeIcon(
                 size = 70.dp,
                 drawableRes = achievementIconRes(next.definition),
-                monogram = next.definition.title.take(1),
                 locked = true,
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -344,33 +343,32 @@ private fun AchievementCard(content: @Composable () -> Unit) {
 @Composable
 internal fun BadgeIcon(
     size: Dp,
-    drawableRes: Int? = null,
-    monogram: String? = null,
+    drawableRes: Int,
     locked: Boolean = false,
 ) {
+    val ringColor = if (locked) TextSecondary.copy(alpha = 0.35f) else Teal.copy(alpha = 0.45f)
     Box(
         modifier = Modifier
             .size(size)
-            .border(2.dp, Color.Black.copy(alpha = 0.15f), CircleShape)
+            .border(2.dp, ringColor, CircleShape)
             .padding(size / 10)
-            .background(if (locked) BadgeGray else BadgeEarned, CircleShape)
-            .alpha(if (locked) 0.55f else 1f),
+            .background(if (locked) BadgeLocked else BadgeEarned, CircleShape)
+            .alpha(if (locked) 0.7f else 1f),
         contentAlignment = Alignment.Center,
     ) {
-        if (drawableRes != null) {
-            Image(
-                painter = painterResource(drawableRes),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                // I greyed out locked artwork so earned badges stand out.
-                colorFilter = if (locked) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) else null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(size / 12),
-            )
-        } else if (monogram != null) {
-            Text(monogram, fontSize = (size.value / 2.6f).sp, color = if (locked) TextSecondary else Teal)
-        }
+        Image(
+            painter = painterResource(drawableRes),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            colorFilter = if (locked) {
+                ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.35f) })
+            } else {
+                null
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(size / 12),
+        )
     }
 }
 

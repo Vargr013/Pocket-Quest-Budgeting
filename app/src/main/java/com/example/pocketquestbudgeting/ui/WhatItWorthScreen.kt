@@ -82,8 +82,9 @@ private val Teal = Color(0xFF0F6B5C)
 private val ButtonTeal = Color(0xFF2A9D8F)
 private val CardWhite = Color(0xFFFFFFFF)
 private val PanelBg = Color(0xFFE8EEEC)
-private val CircleBg = Color(0xFFC4C4C4)
-private val CardBorder = Color(0xFF7D0000)
+private val AccentCoral = Color(0xFFE07A5F)
+private val CircleBg = Color(0xFFCFE8E3)
+private val CardBorder = Color(0xFF0F6B5C)
 private val ErrorRed = Color(0xFFD64545)
 private val CardShape = RoundedCornerShape(20.dp)
 
@@ -358,7 +359,7 @@ private fun ComparisonHeadline(basis: WorthBasis, savedCents: Long, item: WorthI
             text = "= ${comparison.count} ${item.label(comparison.count).replaceFirstChar { it.uppercase() }}",
             fontSize = 36.sp,
             lineHeight = 42.sp,
-            color = Teal,
+            color = AccentCoral,
             textAlign = TextAlign.Center,
         )
         Text(
@@ -542,7 +543,7 @@ private fun ComparisonCard(item: WorthItem, label: String, onClick: () -> Unit) 
             .width(145.dp)
             .height(145.dp)
             .background(PanelBg, CardShape)
-            .border(1.dp, CardBorder, CardShape)
+            .border(1.dp, CardBorder.copy(alpha = 0.25f), CardShape)
             .clickable(onClick = onClick)
             .padding(8.dp),
     ) {

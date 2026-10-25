@@ -2,7 +2,6 @@ package com.example.pocketquestbudgeting.ui
 
 import com.example.pocketquestbudgeting.R
 import com.example.pocketquestbudgeting.data.AchievementDefinition
-import com.example.pocketquestbudgeting.data.AchievementGroup
 import com.example.pocketquestbudgeting.data.AchievementInput
 import com.example.pocketquestbudgeting.data.AchievementProgress
 import com.example.pocketquestbudgeting.data.AchievementReport
@@ -30,18 +29,35 @@ internal fun achievementProgressText(progress: AchievementProgress): String {
 internal fun earnedDateText(millis: Long): String =
     SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(millis))
 
-// Only some badges have artwork; the rest show their first letter.
-internal fun achievementIconRes(definition: AchievementDefinition): Int? = when (definition.group) {
-    AchievementGroup.WHAT_ITS_WORTH -> definition.worthItemId?.let(::worthItemIconRes)
-    AchievementGroup.MONTHLY_BUDGET -> R.drawable.piggy_bank
-    AchievementGroup.GETTING_STARTED -> R.drawable.piggy_login_logo
-    else -> null
+internal fun achievementIconRes(definition: AchievementDefinition): Int = when (definition.id) {
+    "first_expense" -> R.drawable.achievement_first_steps
+    "first_budget" -> R.drawable.achievement_planner
+    "first_limit" -> R.drawable.achievement_limit_setter
+    "streak_3" -> R.drawable.achievement_warming_up
+    "streak_7" -> R.drawable.achievement_on_a_roll
+    "streak_30" -> R.drawable.achievement_habit_hero
+    "active_50" -> R.drawable.achievement_dedicated_tracker
+    "budget_1" -> R.drawable.achievement_budget_keeper
+    "budget_3" -> R.drawable.achievement_budget_pro
+    "budget_6" -> R.drawable.achievement_budget_master
+    "categories_1" -> R.drawable.achievement_category_champion
+    "categories_3" -> R.drawable.achievement_limit_legend
+    "worth_coffee" -> R.drawable.achievement_coffee_collector
+    "worth_burger" -> R.drawable.achievement_burger_boss
+    "worth_movie" -> R.drawable.achievement_movie_buff
+    "worth_trip" -> R.drawable.achievement_getaway_saver
+    "worth_phone" -> R.drawable.achievement_phone_fund
+    "worth_car" -> R.drawable.achievement_wheels_in_motion
+    else -> R.drawable.achievement_first_steps
 }
 
 internal fun worthItemIconRes(itemId: String): Int? = when (itemId) {
-    WorthCatalog.COFFEE -> R.drawable.icon_coffee
-    WorthCatalog.BURGER -> R.drawable.icon_burger
-    WorthCatalog.MOVIE_TICKET -> R.drawable.icon_ticket
+    WorthCatalog.COFFEE -> R.drawable.achievement_coffee_collector
+    WorthCatalog.BURGER -> R.drawable.achievement_burger_boss
+    WorthCatalog.MOVIE_TICKET -> R.drawable.achievement_movie_buff
+    WorthCatalog.WEEKEND_TRIP -> R.drawable.achievement_getaway_saver
+    WorthCatalog.PHONE -> R.drawable.achievement_phone_fund
+    WorthCatalog.CAR -> R.drawable.achievement_wheels_in_motion
     else -> null
 }
 
