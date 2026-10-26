@@ -112,12 +112,10 @@ private fun AchievementsContent(report: AchievementReport?, error: String?, onBa
                 .padding(top = 4.dp),
         ) {
             // I added Back so this screen can return to the menu.
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Text("Back", color = Teal)
-            }
+            )
             Text(
                 text = "Achievements",
                 fontSize = 36.sp,

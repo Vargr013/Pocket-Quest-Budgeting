@@ -43,7 +43,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -119,12 +118,10 @@ fun UpdateSavingGoalScreen(userId: Long = 0, onBack: () -> Unit = {}, session: A
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            TextButton(
-                onClick = { if (!saving) onBack() },
+            PocketQuestBackButton(
+                onBack = { if (!saving) onBack() },
                 modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Text("Back", color = Teal)
-            }
+            )
             Text(
                 text = "Update Saving Goal",
                 fontSize = 32.sp,

@@ -3,8 +3,9 @@ package com.example.pocketquestbudgeting.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -97,7 +98,7 @@ class GamificationScreenTest {
             compose.onNodeWithText("Planner").performScrollTo().performClick()
             compose.onNodeWithText("Earned on", substring = true).assertExists()
             compose.onNodeWithText("Close").performClick()
-            compose.onNodeWithText("Back").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Back").performScrollTo().performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithText("Bicycle").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("Remove").performScrollTo().performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithText("No custom items yet.").fetchSemanticsNodes().isNotEmpty() }

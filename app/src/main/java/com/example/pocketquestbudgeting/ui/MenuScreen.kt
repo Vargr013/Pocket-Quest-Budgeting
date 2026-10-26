@@ -57,9 +57,7 @@ fun MenuScreen(onBack: () -> Unit,
                 .align(Alignment.Center),
         )
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
-        TextButton(onClick = onBack) {
-            Text("Back")
-        }
+        PocketQuestBackButton(onBack = onBack)
         Text("Pocket Quest Budgeting")
         Button(
             onClick = onWhatItWorth,

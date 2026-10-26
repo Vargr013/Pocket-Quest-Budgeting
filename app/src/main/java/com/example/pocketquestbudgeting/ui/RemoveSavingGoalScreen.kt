@@ -106,13 +106,10 @@ fun RemoveSavingGoalScreen(userId: Long = 0, onBack: () -> Unit, session: Accoun
                 .padding(top = 4.dp),
         ) {
             // I added Back so this screen can return to the menu.
-            TextButton(
-                onClick = { if (!saving) onBack() },
+            PocketQuestBackButton(
+                onBack = { if (!saving) onBack() },
                 modifier = Modifier.align(Alignment.CenterStart),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text("Back", color = Teal, fontSize = 16.sp)
-            }
+            )
             Text(
                 text = "Remove Saving Goal",
                 fontSize = 32.sp,

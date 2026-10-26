@@ -171,14 +171,11 @@ fun RemoveCategoryScreen(userId: Long, onBack: () -> Unit = {}, onAddCategory: (
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 enabled = !saving,
                 modifier = Modifier.align(Alignment.CenterStart),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text("Back", color = Teal, fontSize = 16.sp)
-            }
+            )
             Text(
                 text = "Categories",
                 fontSize = 36.sp,

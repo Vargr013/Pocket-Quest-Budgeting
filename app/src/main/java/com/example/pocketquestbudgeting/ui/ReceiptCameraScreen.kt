@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,12 +55,10 @@ fun ReceiptScannerScreen(onBack: () -> Unit = {}) {
                 .align(Alignment.TopCenter)
                 .padding(top = 4.dp),
         ) {
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Text("Back", color = Teal)
-            }
+            )
             Text(
                 text = "Receipt Scanner",
                 fontSize = 20.sp,

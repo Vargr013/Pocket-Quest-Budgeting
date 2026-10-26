@@ -26,7 +26,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,14 +87,11 @@ fun AddCategoryScreen(userId: Long, onBack: () -> Unit = {}) {
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 enabled = !saving,
                 modifier = Modifier.align(Alignment.CenterStart),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text("Back", color = Teal, fontSize = 16.sp)
-            }
+            )
             Text(
                 text = "Add Category",
                 fontSize = 36.sp,
@@ -215,7 +211,7 @@ fun AddCategoryScreen(userId: Long, onBack: () -> Unit = {}) {
                 Text(if (saving) "Saving..." else "＋  Add Category", fontSize = 20.sp)
             }
         }
-        TextButton(onClick = onBack, enabled = !saving) { Text("Back to Categories") }
+        PocketQuestBackButton(onBack = onBack, enabled = !saving, contentDescription = "Back to Categories")
     }
 }
 

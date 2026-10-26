@@ -43,7 +43,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -106,13 +105,10 @@ fun AddSavingGoalScreen(userId: Long = 0, onBack: () -> Unit, session: AccountSe
                 .padding(top = 4.dp),
         ) {
             // I added Back so this screen can return to the menu.
-            TextButton(
-                onClick = { if (!saving) onBack() },
+            PocketQuestBackButton(
+                onBack = { if (!saving) onBack() },
                 modifier = Modifier.align(Alignment.CenterStart),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text("Back", color = Teal, fontSize = 16.sp)
-            }
+            )
             Text(
                 text = "Add Saving Goal",
                 fontSize = 36.sp,

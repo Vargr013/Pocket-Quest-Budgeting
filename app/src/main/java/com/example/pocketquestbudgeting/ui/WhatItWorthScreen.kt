@@ -205,12 +205,10 @@ private fun WhatItWorthContent(
                 .padding(top = 4.dp),
         ) {
             // I added Back so this screen can return to the menu.
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Text("Back", color = Teal)
-            }
+            )
             Text(
                 text = "What It's Worth",
                 fontSize = 36.sp,

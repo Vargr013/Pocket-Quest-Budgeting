@@ -189,13 +189,10 @@ fun HistoryScreen(userId: Long, onBack: () -> Unit, onExpenseSelected: (Long) ->
                     .fillMaxWidth()
                     .padding(top = 4.dp),
             ) {
-                TextButton(
-                    onClick = onBack,
+                PocketQuestBackButton(
+                    onBack = onBack,
                     modifier = Modifier.align(Alignment.CenterStart),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                ) {
-                    Text("Back", color = Teal, fontSize = 16.sp)
-                }
+                )
                 Text(
                     text = "History",
                     fontSize = 36.sp,

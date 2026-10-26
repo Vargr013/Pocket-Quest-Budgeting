@@ -167,7 +167,7 @@ fun AddExpenseScreen(
                 .background(ScreenBg)
                 .padding(24.dp),
         ) {
-            TextButton(onClick = onBack) { Text("Back to Details") }
+            PocketQuestBackButton(onBack = onBack, contentDescription = "Back to Details")
             Text("Edit Expense", style = MaterialTheme.typography.titleLarge)
             Text(expenseError ?: "Loading expense…")
             if (expenseError != null) {
@@ -193,18 +193,11 @@ fun AddExpenseScreen(
                 .fillMaxWidth()
                 .padding(top = 4.dp),
         ) {
-            TextButton(
-                onClick = onBack,
+            PocketQuestBackButton(
+                onBack = onBack,
                 enabled = !saving && !receiptPending,
                 modifier = Modifier.align(Alignment.CenterStart),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-            ) {
-                Text(
-                    text = "Back",
-                    color = Teal,
-                    fontSize = 16.sp,
-                )
-            }
+            )
             Text(
                 text = if (editing) "Edit Expense" else "Add Expense",
                 fontSize = 36.sp,

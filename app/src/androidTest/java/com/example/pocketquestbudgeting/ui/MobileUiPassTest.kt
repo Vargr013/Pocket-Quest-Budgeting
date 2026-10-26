@@ -54,7 +54,7 @@ class MobileUiPassTest {
         compose.onNodeWithText("Log out").performScrollTo().assertIsDisplayed().performClick()
         assertTrue(loggedOut)
         saveScreenshot("mobile-menu-large-text")
-        compose.onNodeWithText("Back").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun loginKeyboardMovesToPasswordAndDoneClearsFocusWithoutSubmitting() {

@@ -46,7 +46,7 @@ class CategorySpendingScreenTest {
             compose.setContent { PocketQuestTheme { if (showing) CategorySpendingSummaryScreen(owner, {}) } }
             showRow("Groceries, R2000.00, 50.0% of spending in this period")
             selectPeriod("Current month")
-            showRow("Groceries, R500.00 of R1000.00, 50.0% of monthly limit")
+            showRow("Groceries, R500.00 of R1000.00, 50% of limit, 20.0% of spending in this period")
             showRow("Transport, R2000.00, 80.0% of spending in this period")
             saveScreenshot("integration-summary-month")
             selectPeriod("Current week")

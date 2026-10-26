@@ -16,12 +16,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImage
 import com.example.pocketquestbudgeting.R
 import java.io.File
 
 @Composable
-internal fun ExpenseReceipt(path: String?, enabled: Boolean = true) {
+internal fun ExpenseReceipt(path: String?, enabled: Boolean = true, thumbnailSize: Dp = 56.dp) {
     var showing by remember(path) { mutableStateOf(false) }
     var failed by remember(path) { mutableStateOf(false) }
 
@@ -38,7 +39,7 @@ internal fun ExpenseReceipt(path: String?, enabled: Boolean = true) {
                 model = File(path),
                 contentDescription = stringResource(R.string.receipt_photo),
                 onError = { failed = true },
-                modifier = Modifier.size(56.dp).clickable(enabled = enabled) { showing = true },
+                modifier = Modifier.size(thumbnailSize).clickable(enabled = enabled) { showing = true },
             )
             TextButton(onClick = { showing = true }, enabled = enabled) { Text("View receipt") }
         }

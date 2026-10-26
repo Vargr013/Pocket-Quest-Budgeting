@@ -158,13 +158,11 @@ fun CategorySpendingSummaryScreen(userId: Long, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     // I added Back so this screen can return to the menu.
-                    TextButton(
-                        onClick = onBack,
+                    PocketQuestBackButton(
+                        onBack = onBack,
                         modifier = Modifier
                             .heightIn(min = 48.dp),
-                    ) {
-                        Text("Back", color = Teal)
-                    }
+                    )
                     Text(
                         text = "Spending summary",
                         fontSize = 28.sp,

@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.pocketquestbudgeting.data.CategorySyncs
 import com.example.pocketquestbudgeting.data.DatabaseProvider
 import com.example.pocketquestbudgeting.data.ExpenseEntity
@@ -21,7 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun SyncedExpenseReceipt(expense: ExpenseEntity, enabled: Boolean = true) {
+internal fun SyncedExpenseReceipt(expense: ExpenseEntity, enabled: Boolean = true, thumbnailSize: Dp = 56.dp) {
     val context = LocalContext.current
     val db = remember(context) { DatabaseProvider.get(context) }
     val scope = rememberCoroutineScope()
@@ -45,14 +47,14 @@ internal fun SyncedExpenseReceipt(expense: ExpenseEntity, enabled: Boolean = tru
     }
     Column {
         val local = if (job != null) expense.receiptImageUri else downloaded ?: expense.receiptImageUri
-        if (local != null) ExpenseReceipt(local, enabled)
+        if (local != null) ExpenseReceipt(local, enabled, thumbnailSize)
         else if (expense.receiptObjectPath == null && job == null) Text("No receipt")
         else Text(if (downloading) "Downloading receipt…" else "Receipt saved; photo download pending.")
         if (job != null) Text(job.lastError ?: if (job.remove) "Receipt removal pending." else "Photo saved locally; transfer pending.")
         message?.let { Text(it) }
         if (job != null && downloaded != null && downloaded != local) {
             Text("Current online receipt")
-            ExpenseReceipt(downloaded, enabled)
+            ExpenseReceipt(downloaded, enabled, thumbnailSize)
         }
         if (job?.phase == "CONFLICT") {
             if (downloaded == null) Text(if (expense.receiptObjectPath == null) "No server photo" else "Download the server photo before choosing it.")
