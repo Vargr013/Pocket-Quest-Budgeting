@@ -188,9 +188,6 @@ fun AddExpenseScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
 
-        if (editing) {
-            TextButton(onClick = onBack, enabled = !saving && !receiptPending) { Text("Back to Details") }
-        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -198,12 +195,12 @@ fun AddExpenseScreen(
         ) {
             TextButton(
                 onClick = onBack,
-                enabled = !saving,
+                enabled = !saving && !receiptPending,
                 modifier = Modifier.align(Alignment.CenterStart),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
             ) {
                 Text(
-                    text = if (editing) "Back to Details" else "Back",
+                    text = "Back",
                     color = Teal,
                     fontSize = 16.sp,
                 )
@@ -233,9 +230,11 @@ fun AddExpenseScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Current Balance", fontSize = 20.sp, color = TextPrimary)
-                Text("R12 654,00", fontSize = 20.sp, color = TextPrimary)
+                Text("Current Balance", fontSize = 20.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                Text("Not available", fontSize = 20.sp, color = TextPrimary, modifier = Modifier.weight(1f))
             }
+            Text("No account balance recorded.", color = TextSecondary, fontSize = 12.sp,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp))
         }
 
         Card(
