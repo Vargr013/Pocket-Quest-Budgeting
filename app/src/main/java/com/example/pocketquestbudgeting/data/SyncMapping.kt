@@ -6,7 +6,7 @@ import java.security.MessageDigest
 object SyncMapping {
     private val fields = mapOf(
         "categories" to setOf("name", "minimumCents", "maximumCents"),
-        "expenses" to setOf("categoryId", "amountCents", "date", "startTime", "endTime", "description", "receiptObjectPath"),
+        "expenses" to setOf("categoryId", "amountCents", "date", "paymentTime", "description", "receiptObjectPath"),
         "monthlyGoals" to setOf("minimumCents", "maximumCents", "startDate", "endDate"),
         SavingsMapping.GOALS to setOf("name", "targetCents", "targetDate", "note"),
         SavingsMapping.CONTRIBUTIONS to setOf("goalCloudId", "kind", "amountCents", "effectiveDate", "reversesBusinessId", "note"),
@@ -14,6 +14,9 @@ object SyncMapping {
         GamificationMapping.ACTIVITY to setOf("date"),
         GamificationMapping.ITEMS to setOf("name", "valueCents", "category"),
     )
+
+    // I retained old payload bytes so an already-sent mutation keeps its original fingerprint.
+    private val legacyExpenseFields = setOf("categoryId", "amountCents", "date", "startTime", "endTime", "description", "receiptObjectPath")
 
     fun checkType(type: String) { require(type in fields) { "Unsupported record type." } }
     fun immutable(type: String) = SavingsMapping.immutable(type) || type == GamificationMapping.ACTIVITY
@@ -40,7 +43,8 @@ object SyncMapping {
     }
 
     fun encode(type: String, values: Map<String, Any?>): String {
-        require(values.keys == fields[type]) { "Use the exact agreed business fields." }
+        val legacyExpense = type == "expenses" && values.keys == legacyExpenseFields
+        require(values.keys == fields[type] || legacyExpense) { "Use the exact agreed business fields." }
         if (type in SavingsMapping.types) SavingsMapping.validate(type, values)
         if (type in GamificationMapping.types) GamificationMapping.validate(type, values)
         if (type == "categories") {
@@ -55,7 +59,11 @@ object SyncMapping {
                 "Use a cloud receipt object path, never a local file path."
             }
             ExpenseChecks.requireValues(values["amountCents"] as Long, values["date"] as String,
-                values["startTime"] as String, values["endTime"] as String, values["description"] as String)
+                (values["paymentTime"] ?: values["startTime"]) as String, values["description"] as String)
+            if (legacyExpense) {
+                val end = values["endTime"] as String
+                require(Regex("([01][0-9]|2[0-3]):[0-5][0-9]").matches(end) && end >= values["startTime"] as String)
+            }
         }
         if (type == "monthlyGoals") MonthlyGoalChecks.requireValues(values["minimumCents"] as Long,
             values["maximumCents"] as Long, values["startDate"] as String, values["endDate"] as String)

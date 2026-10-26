@@ -41,7 +41,7 @@ class CustomWorthMigrationTest {
         fun open() = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         var db = open()
         try {
-            assertEquals(13, db.openHelper.writableDatabase.version)
+            assertEquals(14, db.openHelper.writableDatabase.version)
             val row = db.gamificationDao().getCustomItems(41).single()
             assertEquals(7L, row.id)
             assertEquals(9007199254740993L, row.valueCents)

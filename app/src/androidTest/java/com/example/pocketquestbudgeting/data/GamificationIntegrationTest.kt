@@ -28,7 +28,7 @@ class GamificationIntegrationTest {
             assertNotEquals(owner, mappedOwner)
             val category = db.categoryDao().insert(CategoryEntity(userId = owner, name = "Food", maxMonthlyBudget = 100_00))
             db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 50_00,
-                date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+                date = "2026-09-10", paymentTime = "09:00", description = "Synthetic"))
             db.gamificationDao().markActiveDay(owner, "2026-10-18")
             db.gamificationDao().markActiveDay(owner, "2026-10-19")
             db.gamificationDao().markActiveDay(owner, "2026-10-20")

@@ -39,6 +39,32 @@ import java.util.UUID
 class MobileUiPassTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun expenseDetailsShowOnlyTimeOfPayment() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = DatabaseProvider.get(context)
+        val userId = db.userDao().insert(UserEntity(username = "payment-ui-${UUID.randomUUID()}"))
+        val categoryId = db.categoryDao().insert(CategoryEntity(userId = userId, name = "Payments"))
+        val expenseId = db.expenseDao().insert(ExpenseEntity(userId = userId, categoryId = categoryId,
+            amount = 12345, date = todayIsoDate(), paymentTime = "23:59", description = "Payment fixture"))
+        var showing by mutableStateOf(true)
+        try {
+            compose.setContent {
+                PocketQuestTheme { if (showing) ExpenseDetailsScreen(userId, expenseId, {}) }
+            }
+            compose.waitUntil(10000) { compose.onAllNodesWithText("Time of payment").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Time of payment").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("23:59").assertIsDisplayed()
+            compose.onNodeWithText("Start time").assertDoesNotExist()
+            compose.onNodeWithText("End time").assertDoesNotExist()
+        } finally {
+            compose.runOnIdle { showing = false }
+            compose.waitForIdle()
+            db.openHelper.writableDatabase.execSQL("DELETE FROM expenses WHERE userId = ?", arrayOf(userId))
+            db.openHelper.writableDatabase.execSQL("DELETE FROM categories WHERE userId = ?", arrayOf(userId))
+            db.openHelper.writableDatabase.execSQL("DELETE FROM users WHERE id = ?", arrayOf(userId))
+        }
+    }
+
     @Test fun menuOptionsStayReachableInAShortWindowWithLargeText() {
         var loggedOut = false
         compose.setContent {
@@ -116,7 +142,7 @@ class MobileUiPassTest {
             compose.onNodeWithContentDescription("Menu").assertHasClickAction()
             compose.onNodeWithContentDescription("Add expense").assertHasClickAction()
             db.expenseDao().insert(ExpenseEntity(userId = alice, categoryId = category, amount = 12345,
-                date = todayIsoDate(), startTime = "10:00", endTime = "10:01", description = "Weekly groceries for the family"))
+                date = todayIsoDate(), paymentTime = "10:00", description = "Weekly groceries for the family"))
             val goal = db.savingsDao().createGoal(SavingsGoalEntity(userId = alice, cloudId = UUID.randomUUID().toString(),
                 name = "Holiday", targetCents = 100000), openingCents = 25001, openingDate = todayIsoDate())
             compose.waitUntil(10000) { compose.onAllNodesWithText("Weekly groceries for the family").fetchSemanticsNodes().isNotEmpty() }

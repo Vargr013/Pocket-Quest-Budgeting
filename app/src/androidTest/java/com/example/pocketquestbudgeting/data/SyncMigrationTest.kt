@@ -37,7 +37,7 @@ class SyncMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(13, db.openHelper.writableDatabase.version)
+            assertEquals(14, db.openHelper.writableDatabase.version)
             assertEquals("fixture-owner", db.userDao().getById(41)?.firebaseUid)
             assertTrue(requireNotNull(db.userDao().getById(41)).importPending)
             assertTrue(requireNotNull(db.userDao().getById(41)).categoriesInitialized)
@@ -45,8 +45,7 @@ class SyncMigrationTest {
             val expense = requireNotNull(db.expenseDao().getForUserById(41, 71))
             assertEquals(9007199254740993L, expense.amount)
             assertEquals("2024-02-29", expense.date)
-            assertEquals("09:15", expense.startTime)
-            assertEquals("10:45", expense.endTime)
+            assertEquals("09:15", expense.paymentTime)
             assertEquals("/private/retained.jpg", expense.receiptImageUri)
             assertEquals(10000L, db.budgetGoalDao().getForUser(41).single().maximumAmount)
             assertTrue(db.syncDao().pending("fixture-owner").isEmpty())

@@ -41,7 +41,7 @@ class MonthlyBudgetProgressTest {
                 maximumAmount = 80000, startDate = previous.start, endDate = previous.end))
             suspend fun expense(user: Long, categoryId: Long, amount: Long, date: String, deleted: Boolean = false) {
                 db.expenseDao().insert(ExpenseEntity(userId = user, categoryId = categoryId, amount = amount,
-                    date = date, startTime = "10:00", endTime = "10:15", description = "Month fixture", isDeleted = deleted))
+                    date = date, paymentTime = "10:00", description = "Month fixture", isDeleted = deleted))
             }
             expense(owner, category, 100000, current.start)
             expense(owner, category, 10000, previous.start)

@@ -91,8 +91,7 @@ fun AddExpenseScreen(
     var receiptChange by rememberSaveable(userId, expenseId) { mutableStateOf(ReceiptChange.KEEP) }
     var reviewedReceiptPath by rememberSaveable(userId, expenseId) { mutableStateOf<String?>(null) }
     var date by rememberSaveable { mutableStateOf(todayExpenseDate()) }
-    var startTime by rememberSaveable { mutableStateOf("") }
-    var endTime by rememberSaveable { mutableStateOf("") }
+    var paymentTime by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var selectedCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
     var categories by remember { mutableStateOf<List<CategoryEntity>>(emptyList()) }
@@ -129,8 +128,7 @@ fun AddExpenseScreen(
                 // I filled this once so reloading categories would not reset my edits.
                 amountText = BigDecimal.valueOf(expense.amount, 2).toPlainString()
                 date = expense.date
-                startTime = expense.startTime
-                endTime = expense.endTime
+                paymentTime = expense.paymentTime
                 description = expense.description
                 selectedCategoryId = expense.categoryId
                 receiptPath = expense.receiptImageUri
@@ -331,28 +329,17 @@ fun AddExpenseScreen(
                 )
                 FieldError(errors["date"])
 
-                Text("Start time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
+                Text("Time of payment (HH:mm)", fontSize = 12.sp, color = TextPrimary)
                 PlainField(
-                    value = startTime,
-                    onValueChange = { startTime = it; errors = errors - "startTime" },
-                    enabled = !saving && !receiptPending,
-                    placeholder = "HH:mm",
-                    background = FieldBgSoft,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                FieldError(errors["startTime"])
-
-                Text("End time (HH:mm)", fontSize = 12.sp, color = TextPrimary)
-                PlainField(
-                    value = endTime,
-                    onValueChange = { endTime = it; errors = errors - "endTime" },
+                    value = paymentTime,
                     imeAction = ImeAction.Done,
+                    onValueChange = { paymentTime = it; errors = errors - "paymentTime" },
                     enabled = !saving && !receiptPending,
                     placeholder = "HH:mm",
                     background = FieldBgSoft,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                FieldError(errors["endTime"])
+                FieldError(errors["paymentTime"])
 
                 FieldError(receiptError)
                 if (receiptError != null) {
@@ -382,7 +369,7 @@ fun AddExpenseScreen(
         Button(
             onClick = {
                 if (saving || receiptPending || receiptError != null) return@Button
-                val validation = validateExpense(date, startTime, endTime, description, selectedCategoryId, amountText)
+                val validation = validateExpense(date, paymentTime, description, selectedCategoryId, amountText)
                 errors = validation.errors
                 saveError = null
                 if (validation.errors.isNotEmpty()) return@Button
@@ -390,8 +377,7 @@ fun AddExpenseScreen(
                 val amountCents = validation.amountCents ?: return@Button
                 // I kept a copy of the entered values before saving.
                 val savedDate = date.trim()
-                val savedStart = startTime.trim()
-                val savedEnd = endTime.trim()
+                val savedPaymentTime = paymentTime.trim()
                 val savedDescription = description.trim()
                 val savedReceipt = receiptPath
                 val editUserId = loadedUserId
@@ -401,7 +387,7 @@ fun AddExpenseScreen(
                         check(!editing || editUserId == userId)
                         val saved = ExpenseSyncs.get(context).save(CategorySyncs.account(context, userId),
                             ExpenseEntity(id = expenseId ?: 0, userId = userId, categoryId = categoryId,
-                                amount = amountCents, date = savedDate, startTime = savedStart, endTime = savedEnd,
+                                amount = amountCents, date = savedDate, paymentTime = savedPaymentTime,
                                 description = savedDescription, receiptImageUri = savedReceipt), receiptChange, reviewedReceiptPath)
                         if (saved == 1) onBack() else if (saved == 0) {
                             saveError = "Expense unavailable. No changes were saved. You can go back to Details."

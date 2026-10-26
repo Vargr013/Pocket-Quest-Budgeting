@@ -12,12 +12,11 @@ object ExpenseChecks {
         return day in 1..days[month - 1]
     }
 
-    fun requireValues(amount: Long, date: String, start: String, end: String, description: String) {
+    fun requireValues(amount: Long, date: String, paymentTime: String, description: String) {
         require(amount > 0) { "Enter a positive whole-cent amount." }
         require(validDate(date)) { "Enter a valid date as YYYY-MM-DD." }
         val time = Regex("([01][0-9]|2[0-3]):[0-5][0-9]")
-        require(time.matches(start) && time.matches(end)) { "Enter times as HH:mm (24-hour)." }
-        require(end >= start) { "End time cannot be earlier than start time on the same day." }
+        require(time.matches(paymentTime)) { "Enter time of payment as HH:mm (24-hour)." }
         require(description.isNotBlank() && description == description.trim()) { "Enter a description." }
     }
 }

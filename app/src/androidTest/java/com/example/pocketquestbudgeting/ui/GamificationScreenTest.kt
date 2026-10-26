@@ -69,7 +69,7 @@ class GamificationScreenTest {
         try {
             val category = db.categoryDao().insert(CategoryEntity(userId = owner, name = "Synthetic food"))
             db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 100,
-                date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+                date = "2026-09-10", paymentTime = "09:00", description = "Synthetic"))
             compose.setContent {
                 PocketQuestTheme {
                     if (showAchievements) AchievementsScreen(owner, onBack = { showAchievements = false })

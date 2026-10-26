@@ -37,7 +37,7 @@ class GamificationMigrationTest {
         }
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(13, db.openHelper.writableDatabase.version)
+            assertEquals(14, db.openHelper.writableDatabase.version)
             assertEquals(150000L, db.expenseDao().getForUserById(41, 71)?.amount)
             assertEquals("2026-09", db.budgetGoalDao().getByMonthKey(41, "2026-09")?.monthKey)
 

@@ -194,6 +194,31 @@ object DatabaseMigrations {
             db.execSQL("CREATE UNIQUE INDEX index_custom_worth_items_userId_cloudId ON custom_worth_items(userId, cloudId)")
         }
     }
+    val FROM_13_TO_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val sequence = db.query("SELECT seq FROM sqlite_sequence WHERE name = 'expenses'").use {
+                if (it.moveToFirst()) it.getLong(0) else 0L
+            }
+            // I used the old start time as payment time and retained IDs, exact cents and receipt references.
+            db.execSQL("""CREATE TABLE expenses_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, userId INTEGER NOT NULL,
+                categoryId INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL,
+                paymentTime TEXT NOT NULL, description TEXT NOT NULL, receiptImageUri TEXT,
+                cloudId TEXT, isDeleted INTEGER NOT NULL DEFAULT 0, receiptObjectPath TEXT)""")
+            db.execSQL("""INSERT INTO expenses_new
+                (id, userId, categoryId, amount, date, paymentTime, description, receiptImageUri, cloudId, isDeleted, receiptObjectPath)
+                SELECT id, userId, categoryId, amount, date, startTime, description, receiptImageUri, cloudId, isDeleted, receiptObjectPath
+                FROM expenses""")
+            db.execSQL("DROP TABLE expenses")
+            db.execSQL("ALTER TABLE expenses_new RENAME TO expenses")
+            db.execSQL("DELETE FROM sqlite_sequence WHERE name = 'expenses'")
+            db.execSQL("INSERT INTO sqlite_sequence (name, seq) VALUES ('expenses', ?)", arrayOf(sequence))
+            db.execSQL("CREATE INDEX index_expenses_userId ON expenses(userId)")
+            db.execSQL("CREATE INDEX index_expenses_categoryId ON expenses(categoryId)")
+            db.execSQL("CREATE UNIQUE INDEX index_expenses_userId_cloudId ON expenses(userId, cloudId)")
+            // I left sync records and queued mutations unchanged for safe acknowledgement and retry.
+        }
+    }
     val ALL = arrayOf(FROM_1_TO_2, FROM_2_TO_3, FROM_3_TO_4, FROM_4_TO_5, FROM_5_TO_6, FROM_6_TO_7,
-        FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11, FROM_11_TO_12, FROM_10_TO_12, FROM_12_TO_13)
+        FROM_7_TO_8, FROM_8_TO_9, FROM_9_TO_10, FROM_10_TO_11, FROM_11_TO_12, FROM_10_TO_12, FROM_12_TO_13, FROM_13_TO_14)
 }

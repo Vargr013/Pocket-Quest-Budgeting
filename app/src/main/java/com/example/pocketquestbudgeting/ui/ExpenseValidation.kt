@@ -14,8 +14,7 @@ internal data class ExpenseValidation(
 
 internal fun validateExpense(
     date: String,
-    startTime: String,
-    endTime: String,
+    paymentTime: String,
     description: String,
     categoryId: Long?,
     amount: String,
@@ -23,12 +22,8 @@ internal fun validateExpense(
     val errors = mutableMapOf<String, String>()
     if (!validExpenseDate(date.trim())) errors["date"] = "Enter a valid date as YYYY-MM-DD."
     val timePattern = Regex("([01][0-9]|2[0-3]):[0-5][0-9]")
-    val start = startTime.trim()
-    val end = endTime.trim()
-    if (!timePattern.matches(start)) errors["startTime"] = "Enter a valid start time as HH:mm (24-hour)."
-    if (!timePattern.matches(end)) errors["endTime"] = "Enter a valid end time as HH:mm (24-hour)."
-    if (timePattern.matches(start) && timePattern.matches(end) && end < start) {
-        errors["endTime"] = "End time cannot be earlier than start time on the same day."
+    if (!timePattern.matches(paymentTime.trim())) {
+        errors["paymentTime"] = "Enter a valid time of payment as HH:mm (24-hour)."
     }
     if (description.isBlank()) errors["description"] = "Enter a description."
     if (categoryId == null) errors["category"] = "Select a category."

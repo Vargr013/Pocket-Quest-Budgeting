@@ -78,9 +78,9 @@ internal fun previewAchievementReport(): AchievementReport = Achievements.evalua
     AchievementInput(
         expenses = listOf(
             ExpenseEntity(id = 1, userId = 1, categoryId = 1, amount = 1_200_00, date = "2026-09-12",
-                startTime = "09:00", endTime = "09:30", description = "Groceries"),
+                paymentTime = "09:00", description = "Groceries"),
             ExpenseEntity(id = 2, userId = 1, categoryId = 1, amount = 350_00, date = "2026-10-03",
-                startTime = "12:00", endTime = "12:15", description = "Groceries"),
+                paymentTime = "12:00", description = "Groceries"),
         ),
         budgetGoals = listOf(
             BudgetGoalEntity(id = 1, userId = 1, minimumAmount = 0, maximumAmount = 2_000_00,

@@ -77,7 +77,7 @@ class ReceiptFirebaseTest {
                 val unrelated=db.userDao().createCloudUser("unrelated","Other")
                 val category=db.categoryDao().insert(CategoryEntity(userId=unrelated,name="Other"))
                 db.expenseDao().insert(ExpenseEntity(userId=unrelated,categoryId=category,amount=1,date="2026-10-01",
-                    startTime="00:00",endTime="00:00",description="Unrelated"))
+                    paymentTime = "00:00",description="Unrelated"))
             }
             val id=db.userDao().createCloudUser(uid,"Synthetic")
             return Client(db,SyncAccount(id,uid,1),index,File(root,"client-$index").apply{mkdirs()})
@@ -93,7 +93,7 @@ class ReceiptFirebaseTest {
     private suspend fun attach() {
         val category=a.db.categoryDao().getForUser(a.account.localUserId).first()
         a.expenses.save(a.account,ExpenseEntity(userId=a.account.localUserId,categoryId=category.id,amount=9007199254740993L,
-            date="2024-02-29",startTime="09:15",endTime="10:45",description="Synthetic receipt",
+            date="2024-02-29",paymentTime = "09:15",description="Synthetic receipt",
             receiptImageUri=image(a,"first",android.graphics.Color.RED).absolutePath))
         a.send();a.publish();b.refresh()
     }

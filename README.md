@@ -80,7 +80,7 @@ First authentication/linking needs internet. Remember Me permits restoration of 
 
 - Log in / register through Firebase, with a unique UID mapping to your local Room account
 - Create and manage **categories**
-- Add an **expense** (date, start/end time, description, category, amount)
+- Add an **expense** (date, time of payment, description, category, amount)
 - Optionally add a **receipt photo** (gallery or camera, copied into app storage)
 - Open **History**, filter by period (all / week / month / custom), and view a saved photo
 - Set overall monthly minimum/maximum spending goals and individual category limits
@@ -94,6 +94,10 @@ Categories, expenses and monthly goals have Room/Firestore sync. Savings goals, 
 Achievements calculate badges from saved expenses, budgets, category limits and activity days. Earned badges use the existing award storage and sync path. What It's Worth compares unused budgets with estimated catalogue prices or custom items; its "Total saved" is the unused budget from completed months with logged expenses, rather than savings-goal contributions. Activity days and custom items also sync through the account. Comparison preferences stay on the device. Historical category results use the current category limits.
 
 Room version 13 adds stable cloud IDs and retained deletion markers to custom worth items. Forward migrations cover main's versions 10 to 12 and the standalone gamification version 10, retaining its original badges, activity days and custom items. Existing financial, receipt, savings and award tables remain intact.
+
+Room version 14 replaces expense start/end times with a single `paymentTime` (`HH:mm`). Existing start times become payment times; expense IDs, cents, receipt references and retained deletions survive the upgrade. Firestore expense schema version 2 uses the same field. Legacy cloud snapshots and frozen outbox payloads remain readable so pending mutation fingerprints do not change. Old schema exports and migration fixtures intentionally keep their original column names.
+
+For an administrator migrating existing Firestore expenses, run `node scripts/migrate-expense-payment-time.mjs` for a read-only dry run. After deploying the tested `firestore.rules`, `node scripts/migrate-expense-payment-time.mjs --apply` verifies the active rules hash, backs up documents under ignored `.firebase/`, and converts records using update-time preconditions and paired immutable mutation receipts. It retains exact integer amounts and verifies the converted fields after commit. Run `node --test scripts/expense-payment-time.test.mjs` to check the migration planner.
 
 Android account/database backup is excluded so a copied session is not treated as a first login on another device. Keep existing data when checking migrations or offline recovery; do not clear app storage to hide a database mismatch.
 

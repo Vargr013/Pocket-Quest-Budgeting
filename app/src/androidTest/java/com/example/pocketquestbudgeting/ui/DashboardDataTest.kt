@@ -22,11 +22,11 @@ class DashboardDataTest {
             val category = db.categoryDao().insert(CategoryEntity(userId = alice, name = "Groceries"))
             val otherCategory = db.categoryDao().insert(CategoryEntity(userId = bob, name = "Private category"))
             for (day in 1..4) db.expenseDao().insert(ExpenseEntity(userId = alice, categoryId = category,
-                amount = 12345L + day, date = "2026-10-0$day", startTime = "10:00", endTime = "10:01", description = "Expense $day"))
+                amount = 12345L + day, date = "2026-10-0$day", paymentTime = "10:00", description = "Expense $day"))
             db.expenseDao().insert(ExpenseEntity(userId = alice, categoryId = category, amount = 1,
-                date = "2026-10-06", startTime = "10:00", endTime = "10:01", description = "Removed", isDeleted = true))
+                date = "2026-10-06", paymentTime = "10:00", description = "Removed", isDeleted = true))
             db.expenseDao().insert(ExpenseEntity(userId = bob, categoryId = otherCategory, amount = 999,
-                date = "2026-10-07", startTime = "10:00", endTime = "10:01", description = "Private expense"))
+                date = "2026-10-07", paymentTime = "10:00", description = "Private expense"))
             val goal = db.savingsDao().createGoal(SavingsGoalEntity(userId = alice, cloudId = UUID.randomUUID().toString(),
                 name = "Holiday", targetCents = 100000), openingCents = 25001, openingDate = "2026-10-01")
             val removed = db.savingsDao().createGoal(SavingsGoalEntity(userId = alice, cloudId = UUID.randomUUID().toString(),

@@ -53,7 +53,7 @@ class ReceiptSyncTest {
     private suspend fun row() = db.expenseDao().getForUser(account.localUserId).single()
     private suspend fun save(file: File? = image("first")) {
         expenses.save(account, ExpenseEntity(userId = account.localUserId, categoryId = category, amount = 9007199254740993L,
-            date = "2024-02-29", startTime = "09:00", endTime = "10:00", description = "Synthetic", receiptImageUri = file?.absolutePath))
+            date = "2024-02-29", paymentTime = "09:00", description = "Synthetic", receiptImageUri = file?.absolutePath))
         sync.retryPending(account)
     }
     private suspend fun publish() { photos.runPending(account); sync.retryPending(account) }

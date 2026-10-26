@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
     entities = [UserEntity::class, CategoryEntity::class, ExpenseEntity::class, BudgetGoalEntity::class, SyncRecord::class, SyncOperation::class,
         ReceiptJob::class, ReceiptCache::class, SavingsGoalEntity::class, SavingsContributionEntity::class,
         EarnedAchievementEntity::class, ActivityDayEntity::class, CustomWorthItemEntity::class],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

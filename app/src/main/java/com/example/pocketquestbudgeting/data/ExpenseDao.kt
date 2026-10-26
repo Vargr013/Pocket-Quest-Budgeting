@@ -10,10 +10,10 @@ interface ExpenseDao {
     @Insert
     suspend fun insert(expense: ExpenseEntity): Long
 
-    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 ORDER BY date DESC, startTime DESC, id DESC")
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 ORDER BY date DESC, paymentTime DESC, id DESC")
     suspend fun getForUser(userId: Long): List<ExpenseEntity>
 
-    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 AND date >= :startDate AND date <= :endDate ORDER BY date DESC, startTime DESC, id DESC")
+    @Query("SELECT * FROM expenses WHERE userId = :userId AND isDeleted = 0 AND date >= :startDate AND date <= :endDate ORDER BY date DESC, paymentTime DESC, id DESC")
     suspend fun getForUserInRange(userId: Long, startDate: String, endDate: String): List<ExpenseEntity>
 
     // I used instr so punctuation and spaces stay literal; lower handles ASCII capitals.
@@ -24,7 +24,7 @@ interface ExpenseDao {
         AND (:endDate IS NULL OR date <= :endDate)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
         AND (:search = '' OR instr(lower(description), lower(:search)) > 0)
-        ORDER BY date DESC, startTime DESC, id DESC
+        ORDER BY date DESC, paymentTime DESC, id DESC
     """)
     suspend fun getForUserFiltered(
         userId: Long,
@@ -51,18 +51,18 @@ interface ExpenseDao {
 
     suspend fun updateSynced(expense: ExpenseEntity): Int = updateForSync(
         expense.userId, expense.id, expense.categoryId, expense.amount, expense.date,
-        expense.startTime, expense.endTime, expense.description, expense.receiptImageUri,
+        expense.paymentTime, expense.description, expense.receiptImageUri,
         expense.cloudId, expense.isDeleted, expense.receiptObjectPath,
     )
 
     @Query("""
         UPDATE expenses SET categoryId = :categoryId, amount = :amount, date = :date,
-            startTime = :startTime, endTime = :endTime, description = :description,
+            paymentTime = :paymentTime, description = :description,
             receiptImageUri = :receiptImageUri, cloudId = :cloudId,
             isDeleted = :deleted, receiptObjectPath = :receiptObjectPath
         WHERE id = :id AND userId = :userId
     """)
     suspend fun updateForSync(userId: Long, id: Long, categoryId: Long, amount: Long,
-        date: String, startTime: String, endTime: String, description: String,
+        date: String, paymentTime: String, description: String,
         receiptImageUri: String?, cloudId: String?, deleted: Boolean, receiptObjectPath: String?): Int
 }

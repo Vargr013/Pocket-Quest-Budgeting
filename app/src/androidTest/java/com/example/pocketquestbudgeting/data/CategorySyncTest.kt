@@ -72,7 +72,7 @@ class CategorySyncTest {
     @Test fun archiveKeptExactLimitsAndHistoryWhileHidingNewAssignments() = runBlocking {
         val id = requireNotNull(categories.create(account, "Travel", 123, 9007199254740993L))
         val expense = db.expenseDao().insert(ExpenseEntity(userId = account.localUserId, categoryId = id,
-            amount = 101, date = "2026-10-17", startTime = "09:15", endTime = "09:30", description = "Synthetic"))
+            amount = 101, date = "2026-10-17", paymentTime = "09:15", description = "Synthetic"))
         sync.retryPending(account)
         assertEquals(CategoryChangeResult.SUCCESS, categories.archive(account, id))
         val archived = requireNotNull(db.categoryDao().getForUserById(account.localUserId, id))

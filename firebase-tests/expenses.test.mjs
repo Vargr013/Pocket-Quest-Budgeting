@@ -7,7 +7,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, s
 
 let environment;
 const uid = 'expense-owner';
-const fields = { categoryId: 'category-a', amountCents: 12345, date: '2024-02-29', startTime: '09:15', endTime: '10:30',
+const fields = { categoryId: 'category-a', amountCents: 12345, date: '2024-02-29', paymentTime: '09:15',
   description: 'Synthetic expense', receiptObjectPath: null };
 before(async () => {
   assert.equal(process.env.GCLOUD_PROJECT, 'demo-pocket-quest');
@@ -30,7 +30,7 @@ async function seedCategory(id, archived = false, owner = uid) {
       deletedAt: archived ? serverTimestamp() : null });
   });
 }
-function snapshot(business = fields, revision = 1, deleted = false) { return { ...business, schemaVersion: 1, revision,
+function snapshot(business = fields, revision = 1, deleted = false) { return { ...business, schemaVersion: 2, revision,
   lastMutationId: randomUUID(), updatedAt: serverTimestamp(), isDeleted: deleted, deletedAt: deleted ? serverTimestamp() : null }; }
 function receipt(id, data) { return { recordType: 'expenses', recordId: id, baseRevision: data.revision - 1, revision: data.revision, fingerprint: 'b'.repeat(64) }; }
 function addExpense(batch, db, id, data, withReceipt = true) {
@@ -54,8 +54,8 @@ test('invalid cents, calendar dates, times, descriptions and device fields are d
   const db = client();
   for (const patch of [{ amountCents: 0 }, { amountCents: -1 }, { amountCents: 1.25 }, { amountCents: '123' },
     { date: '2023-02-29' }, { date: '1900-02-29' }, { date: '2024-04-31' }, { date: '2024-00-01' },
-    { date: '0000-01-01' }, { date: '2024-1-01' }, { date: '2024-01-01Z' }, { startTime: '24:00' },
-    { endTime: '09:14' }, { endTime: '10:60' }, { startTime: '9:15' }, { description: '' }, { description: '   ' },
+    { date: '0000-01-01' }, { date: '2024-1-01' }, { date: '2024-01-01Z' }, { paymentTime: '24:00' },
+    { paymentTime: '10:60' }, { paymentTime: '9:15' }, { paymentTime: '' }, { startTime: '09:00' }, { endTime: '10:00' }, { description: '' }, { description: '   ' },
     { description: ' untrimmed' }, { categoryId: 1 }, { categoryId: '../bad' }, { uid }, { userId: 1 },
     { receiptImageUri: '/private/photo.jpg' }, { receiptObjectPath: '/private/photo.jpg' },
     { receiptObjectPath: `users/${uid}/receipts/expense/${randomUUID()}` }, { updatedAt: null },
@@ -64,11 +64,30 @@ test('invalid cents, calendar dates, times, descriptions and device fields are d
   }
 });
 
-test('real calendar boundaries and equal start/end times are accepted', async () => {
+test('real calendar boundaries and payment time boundaries are accepted', async () => {
   const db = client();
   for (const [index, date] of ['2000-02-29', '2024-02-29', '2026-04-30', '0001-01-01', '9999-12-31'].entries()) {
-    await assertSucceeds(save(db, `date-${index}`, snapshot({ ...fields, date, endTime: fields.startTime })));
+    await assertSucceeds(save(db, `date-${index}`, snapshot({ ...fields, date, paymentTime: index % 2 ? '00:00' : '23:59' })));
   }
+});
+
+test('legacy retries remain valid and convert to payment time on edit or deletion', async () => {
+  const db = client();
+  const { paymentTime, ...common } = fields;
+  const legacy = { ...common, startTime: paymentTime, endTime: '10:30' };
+  const old = { ...snapshot(legacy), schemaVersion: 1 };
+  await assertSucceeds(save(db, 'legacy-edit', old));
+  await assertSucceeds(save(db, 'legacy-edit', snapshot({ ...fields, paymentTime: '23:59' }, 2)));
+  const changed = (await getDoc(doc(db, `users/${uid}/expenses/legacy-edit`))).data();
+  assert.equal(changed.schemaVersion, 2);
+  assert.equal(changed.paymentTime, '23:59');
+  assert.equal('startTime' in changed, false); assert.equal('endTime' in changed, false);
+  await assertSucceeds(save(db, 'legacy-delete', { ...snapshot(legacy), schemaVersion: 1 }));
+  await assertFails(save(db, 'legacy-delete', snapshot({ ...fields, paymentTime: '09:16' }, 2, true)));
+  await assertSucceeds(save(db, 'legacy-delete', snapshot(fields, 2, true)));
+  await assertFails(save(db, 'mixed', snapshot({ ...fields, startTime: paymentTime, endTime: '10:30' })));
+  await assertFails(save(db, 'wrong-version', { ...snapshot(), schemaVersion: 1 }));
+  await assertFails(save(db, 'wrong-legacy-version', snapshot(legacy)));
 });
 
 test('missing and archived categories cannot receive new expenses; existing references survive archive', async () => {

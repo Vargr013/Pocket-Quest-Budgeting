@@ -76,7 +76,8 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
                     }
                     check(stillCurrent()) { "Session changed." }
                     val data = fields + mapOf(
-                        "schemaVersion" to 1L, "revision" to base + 1, "lastMutationId" to operation.mutationId,
+                        "schemaVersion" to if (operation.recordType == "expenses" && "paymentTime" in fields) 2L else 1L,
+                        "revision" to base + 1, "lastMutationId" to operation.mutationId,
                         "updatedAt" to FieldValue.serverTimestamp(), "isDeleted" to operation.isDeleted,
                         "deletedAt" to if (operation.isDeleted) FieldValue.serverTimestamp() else null,
                     )
@@ -189,7 +190,7 @@ class FirestoreSyncCloud(private val firestore: FirebaseFirestore) : SyncCloud {
 internal fun DocumentSnapshot.toSyncRecord(uid: String, userId: Long, type: String): SyncRecord {
     SyncMapping.checkKey(type, id)
     val data = requireNotNull(data)
-    check(data["schemaVersion"] == 1L)
+    check(data["schemaVersion"] == if (type == "expenses" && "paymentTime" in data) 2L else 1L)
     val revision = data["revision"] as? Long ?: error("Invalid cloud revision.")
     check(revision > 0)
     val deleted = data["isDeleted"] as? Boolean ?: error("Invalid deletion marker.")

@@ -29,7 +29,7 @@ beforeEach(async () => {
     await setDoc(doc(c.firestore(), `users/${uid}/categories/category`), { isDeleted: false });
   });
   const db = client().firestore();
-  await mutate(db, { categoryId: 'category', amountCents: 9007199254740991, date: '2024-02-29', startTime: '09:00', endTime: '09:30',
+  await mutate(db, { categoryId: 'category', amountCents: 9007199254740991, date: '2024-02-29', paymentTime: '09:00',
     description: 'Synthetic receipt', receiptObjectPath: null }, 1);
 });
 after(async () => env?.cleanup());
@@ -40,14 +40,14 @@ async function reserve(db, job, patch = {}) {
 async function mutate(db, fields, revision, transitions = [], deleted = false) {
   const mutation = randomUUID();
   const batch = writeBatch(db);
-  batch.set(expenseRef(db), { ...fields, schemaVersion: 1, revision, lastMutationId: mutation, updatedAt: serverTimestamp(), isDeleted: deleted,
+  batch.set(expenseRef(db), { ...fields, schemaVersion: 2, revision, lastMutationId: mutation, updatedAt: serverTimestamp(), isDeleted: deleted,
     deletedAt: deleted ? serverTimestamp() : null });
   batch.set(doc(db, `users/${uid}/mutations/${mutation}`), { recordType: 'expenses', recordId: expense, baseRevision: revision - 1,
     revision, fingerprint: 'a'.repeat(64) });
   for (const [job, state] of transitions) batch.update(guardRef(db, job), { state, updatedAt: serverTimestamp(), lastExpenseMutationId: mutation });
   return batch.commit();
 }
-async function fields(db) { const value = (await getDoc(expenseRef(db))).data(); return Object.fromEntries(['categoryId','amountCents','date','startTime','endTime','description','receiptObjectPath'].map(k => [k,value[k]])); }
+async function fields(db) { const value = (await getDoc(expenseRef(db))).data(); return Object.fromEntries(['categoryId','amountCents','date','paymentTime','description','receiptObjectPath'].map(k => [k,value[k]])); }
 
 test('reserve, upload, two-client read, publish, replace, retire and cleanup use production rules', async () => {
   const a = client(), b = client(); const db = a.firestore(); const first = randomUUID(), next = randomUUID();

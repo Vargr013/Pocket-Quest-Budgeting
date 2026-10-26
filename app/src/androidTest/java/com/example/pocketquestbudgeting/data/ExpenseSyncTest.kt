@@ -37,8 +37,32 @@ class ExpenseSyncTest {
     @After fun stop() { db.close(); context.deleteDatabase(databaseName) }
     private suspend fun category() = db.categoryDao().insert(CategoryEntity(userId = account.localUserId, name = "Synthetic"))
     private fun draft(category: Long) = ExpenseEntity(userId = account.localUserId, categoryId = category,
-        amount = 9007199254740993L, date = "2024-02-29", startTime = "09:15", endTime = "10:30",
+        amount = 9007199254740993L, date = "2024-02-29", paymentTime = "09:15",
         description = "Synthetic", receiptImageUri = "/private/device-only.jpg")
+
+    @Test fun legacySnapshotsKeepTheirFingerprintAndMapStartToPaymentTime() {
+        val legacy = mapOf("categoryId" to "category", "amountCents" to 123L, "date" to "2026-10-26",
+            "startTime" to "09:15", "endTime" to "10:30", "description" to "Legacy", "receiptObjectPath" to null)
+        val payload = SyncMapping.encode("expenses", legacy)
+        val operation = SyncOperation(mutationId = UUID.randomUUID().toString(), uid = account.uid,
+            userId = account.localUserId, recordType = "expenses", recordId = "legacy", payload = payload,
+            isDeleted = false, baseRevision = 1)
+        val original = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("expenses\nlegacy\n1\nfalse\n$payload".toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        assertEquals(original, SyncMapping.fingerprint(operation))
+        assertEquals(legacy, SyncMapping.decode("expenses", payload))
+        val mapped = ExpenseMapping.read(SyncRecord(account.uid, account.localUserId, "expenses", "legacy", 1, payload), 2, null)
+        assertEquals("09:15", mapped.paymentTime)
+        val current = ExpenseMapping.fields(mapped, "category")
+        assertEquals("09:15", current["paymentTime"])
+        assertFalse("startTime" in current); assertFalse("endTime" in current)
+        assertEquals(current, SyncMapping.decode("expenses", SyncMapping.encode("expenses", current)))
+        for (mixed in listOf(current + ("endTime" to "10:30"), legacy + ("paymentTime" to "09:15"))) {
+            try { SyncMapping.encode("expenses", mixed); fail("Mixed time schema accepted") }
+            catch (_: IllegalArgumentException) { }
+        }
+    }
 
     @Test fun repeatedImportSurvivedDiskReopenWithoutDuplicateMappingsOrQueueEntries() = runBlocking {
         val category = category()
@@ -87,7 +111,7 @@ class ExpenseSyncTest {
     @Test fun invalidDraftAndAnotherOwnersCategoryCouldNotBeSaved() = runBlocking {
         val category = category()
         for (invalid in listOf(draft(category).copy(amount = 0), draft(category).copy(date = "2023-02-29"),
-            draft(category).copy(startTime = "24:00"), draft(category).copy(endTime = "09:14"))) {
+            draft(category).copy(paymentTime = "24:00"), draft(category).copy(paymentTime = "09:60"))) {
             try { expenses.save(account, invalid); fail("Invalid draft accepted") } catch (_: IllegalArgumentException) { }
         }
         val other = db.userDao().createCloudUser("other", "Other")

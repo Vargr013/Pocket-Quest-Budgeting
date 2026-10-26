@@ -8,7 +8,7 @@ class AchievementsTest {
 
     private fun expense(id: Long, date: String, amount: Long, categoryId: Long = 1) = ExpenseEntity(
         id = id, userId = 1, categoryId = categoryId, amount = amount, date = date,
-        startTime = "09:00", endTime = "09:30", description = "Test",
+        paymentTime = "09:00", description = "Test",
     )
 
     private fun goal(id: Long, month: String, maximum: Long, deleted: Boolean = false) = BudgetGoalEntity(

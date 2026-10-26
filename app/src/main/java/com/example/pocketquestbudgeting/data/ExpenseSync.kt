@@ -7,7 +7,7 @@ import java.util.UUID
 object ExpenseMapping {
     fun fields(expense: ExpenseEntity, categoryCloudId: String): Map<String, Any?> = mapOf(
         "categoryId" to categoryCloudId, "amountCents" to expense.amount,
-        "date" to expense.date, "startTime" to expense.startTime, "endTime" to expense.endTime,
+        "date" to expense.date, "paymentTime" to expense.paymentTime,
         "description" to expense.description, "receiptObjectPath" to expense.receiptObjectPath,
     )
 
@@ -20,7 +20,7 @@ object ExpenseMapping {
         val localPhoto = old?.receiptImageUri?.takeIf { old.receiptObjectPath == objectPath }
         return ExpenseEntity(id = old?.id ?: 0, userId = record.userId, categoryId = categoryId,
             amount = values["amountCents"] as Long, date = values["date"] as String,
-            startTime = values["startTime"] as String, endTime = values["endTime"] as String,
+            paymentTime = (values["paymentTime"] ?: values["startTime"]) as String,
             description = values["description"] as String, receiptImageUri = localPhoto,
             cloudId = record.recordId, isDeleted = record.isDeleted, receiptObjectPath = objectPath)
     }
@@ -34,7 +34,7 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
         reviewedReceiptPath: String? = null): Int = db.withTransaction {
         sync.checkOwner(account)
         require(draft.userId == account.localUserId)
-        ExpenseChecks.requireValues(draft.amount, draft.date, draft.startTime, draft.endTime, draft.description)
+        ExpenseChecks.requireValues(draft.amount, draft.date, draft.paymentTime, draft.description)
         val old = if (draft.id == 0L) null else expenses.getForUserById(account.localUserId, draft.id)
             ?: return@withTransaction 0
         val category = db.categoryDao().getForUserById(account.localUserId, draft.categoryId)
@@ -90,7 +90,7 @@ class ExpenseSync(private val db: AppDatabase, private val sync: PocketQuestSync
                     sync.checkOwner(account)
                     val current = expenses.getIncludingDeleted(account.localUserId, row.id) ?: return@withTransaction
                     if (current.cloudId != null) return@withTransaction
-                    ExpenseChecks.requireValues(current.amount, current.date, current.startTime, current.endTime, current.description)
+                    ExpenseChecks.requireValues(current.amount, current.date, current.paymentTime, current.description)
                     val category = categories.ensureMapped(account, current.categoryId)
                     val mapped = current.copy(cloudId = UUID.randomUUID().toString())
                     sync.saveLocalAndEnqueue(account, "expenses", requireNotNull(mapped.cloudId),

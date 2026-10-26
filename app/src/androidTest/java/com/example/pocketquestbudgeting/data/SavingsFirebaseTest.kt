@@ -120,7 +120,7 @@ class SavingsFirebaseTest {
         val owner = first.account.localUserId
         val category = first.db.categoryDao().insert(CategoryEntity(userId = owner, name = "Synthetic food"))
         first.db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 50_00,
-            date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+            date = "2026-09-10", paymentTime = "09:00", description = "Synthetic"))
         for (day in listOf("2026-10-18", "2026-10-19", "2026-10-20")) first.db.gamificationDao().markActiveDay(owner, day)
         val firstReport = AchievementLoader.load(first.db, owner, today = "2026-10-20", nowMillis = 42L)
         assertEquals(setOf("first_expense", "streak_3"), firstReport.newlyEarned.toSet())
@@ -167,7 +167,7 @@ class SavingsFirebaseTest {
             val owner = client.account.localUserId
             val category = client.db.categoryDao().insert(CategoryEntity(userId = owner, name = "Synthetic food"))
             client.db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = 100,
-                date = "2026-09-10", startTime = "09:00", endTime = "09:30", description = "Synthetic"))
+                date = "2026-09-10", paymentTime = "09:00", description = "Synthetic"))
             return AchievementLoader.load(client.db, owner, today = "2026-10-20", nowMillis = now)
         }
         evaluate(first, 42); evaluate(second, 99)

@@ -52,7 +52,7 @@ class AccountMigrationTest {
         val db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
             val migrated = db.openHelper.writableDatabase
-            assertEquals(13, migrated.version)
+            assertEquals(14, migrated.version)
             migrated.query("PRAGMA table_info(users)").use { columns ->
                 val names = mutableListOf<String>()
                 while (columns.moveToNext()) names += columns.getString(1)
@@ -71,8 +71,7 @@ class AccountMigrationTest {
             assertEquals(61L, expense.categoryId)
             assertEquals(9007199254740993L, expense.amount)
             assertEquals("2024-02-29", expense.date)
-            assertEquals("09:15", expense.startTime)
-            assertEquals("10:45", expense.endTime)
+            assertEquals("09:15", expense.paymentTime)
             assertEquals("Synthetic expense", expense.description)
             assertEquals("/private/synthetic-receipt.jpg", expense.receiptImageUri)
             assertNull(db.expenseDao().getForUserById(51, 71))

@@ -83,8 +83,37 @@ class ExpenseFirebaseTest {
     @After fun stop() { first.db.close(); second.db.close() }
 
     private fun draft(client: Client, category: Long) = ExpenseEntity(userId = client.account.localUserId,
-        categoryId = category, amount = 9007199254740993L, date = "2024-02-29", startTime = "09:15", endTime = "10:30",
+        categoryId = category, amount = 9007199254740993L, date = "2024-02-29", paymentTime = "09:15",
         description = "Café / synthetic expense", receiptImageUri = "/private/this-device-only.jpg")
+
+    @Test fun legacyPaymentReadEditDeleteAndLostReplyReplayUsedTheSameCloudRecord() = runBlocking {
+        first.refresh()
+        val category = first.rows().first()
+        val legacy = mapOf("categoryId" to requireNotNull(category.cloudId), "amountCents" to 123L,
+            "date" to "2026-10-26", "startTime" to "09:15", "endTime" to "10:45",
+            "description" to "Legacy payment", "receiptObjectPath" to null)
+        val operation = SyncOperation(mutationId = UUID.randomUUID().toString(), uid = first.account.uid,
+            userId = first.account.localUserId, recordType = "expenses", recordId = UUID.randomUUID().toString(),
+            payload = SyncMapping.encode("expenses", legacy), isDeleted = false, baseRevision = 0)
+        assertEquals(SendResult.Accepted(1), first.cloud.send(operation) { true })
+        assertEquals(SendResult.Accepted(1), first.cloud.send(operation) { true })
+        second.refresh()
+        val loaded = second.db.expenseDao().getForUser(second.account.localUserId).single()
+        assertEquals("09:15", loaded.paymentTime)
+        assertEquals(1, second.expenses.save(second.account, loaded.copy(paymentTime = "23:59")))
+        second.send()
+        val current = SyncMapping.decode("expenses", second.cloud.download(second.account, "expenses").single().payload)
+        assertEquals("23:59", current["paymentTime"])
+        assertFalse("startTime" in current); assertFalse("endTime" in current)
+        // An old lost reply still acknowledges its original receipt after a newer edit.
+        assertEquals(SendResult.Accepted(1), first.cloud.send(operation) { true })
+        first.refresh()
+        val row = first.db.expenseDao().getForUser(first.account.localUserId).single()
+        assertEquals(1, first.expenses.delete(first.account, row.id))
+        first.send(); second.refresh()
+        assertTrue(second.db.expenseDao().getForUser(second.account.localUserId).isEmpty())
+        assertTrue(second.db.expenseDao().getAllForUser(second.account.localUserId).single().isDeleted)
+    }
 
     @Test fun twoClientsRoundTrippedEveryFieldExactCentsAndDifferentNumericReferences() = runBlocking {
         first.refresh(); second.refresh()
@@ -96,7 +125,7 @@ class ExpenseFirebaseTest {
         assertNotEquals(local.categoryId, remote.categoryId)
         assertEquals(category.cloudId, second.db.categoryDao().getForUserById(second.account.localUserId, remote.categoryId)?.cloudId)
         assertEquals(9007199254740993L, remote.amount)
-        assertEquals("2024-02-29", remote.date); assertEquals("09:15", remote.startTime); assertEquals("10:30", remote.endTime)
+        assertEquals("2024-02-29", remote.date); assertEquals("09:15", remote.paymentTime)
         assertEquals(local.description, remote.description); assertNull(remote.receiptImageUri)
         assertEquals(local.cloudId, remote.cloudId)
         val cloudFields = SyncMapping.decode("expenses", first.cloud.download(first.account, "expenses").single().payload)
@@ -104,11 +133,11 @@ class ExpenseFirebaseTest {
         assertFalse(cloudFields.toString().contains("/private/"))
         val replacement = second.rows().first { it.id != remote.categoryId }
         second.expenses.save(second.account, remote.copy(categoryId = replacement.id, amount = 12345,
-            date = "2026-10-18", startTime = "12:00", endTime = "12:45", description = "Changed on second client"))
+            date = "2026-10-18", paymentTime = "12:00", description = "Changed on second client"))
         second.send(); first.refresh()
         val changed = first.db.expenseDao().getForUser(first.account.localUserId).single()
         assertEquals(local.id, changed.id); assertEquals(12345L, changed.amount)
-        assertEquals("2026-10-18", changed.date); assertEquals("12:00", changed.startTime); assertEquals("12:45", changed.endTime)
+        assertEquals("2026-10-18", changed.date); assertEquals("12:00", changed.paymentTime)
         assertEquals("Changed on second client", changed.description)
         assertEquals(local.receiptImageUri, changed.receiptImageUri)
         assertEquals(replacement.cloudId, first.db.categoryDao().getForUserById(first.account.localUserId, changed.categoryId)?.cloudId)

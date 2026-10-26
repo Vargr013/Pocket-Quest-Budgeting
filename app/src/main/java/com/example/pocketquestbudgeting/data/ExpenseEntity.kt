@@ -14,8 +14,7 @@ data class ExpenseEntity(
     val amount: Long,
     // I used YYYY-MM-DD for dates and HH:mm for 24-hour times.
     val date: String,
-    val startTime: String,
-    val endTime: String,
+    val paymentTime: String,
     val description: String,
     val receiptImageUri: String? = null,
     val cloudId: String? = null,

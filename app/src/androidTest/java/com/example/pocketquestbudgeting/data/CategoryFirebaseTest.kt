@@ -104,7 +104,7 @@ class CategoryFirebaseTest {
         val original = first.rows().first()
         val remote = second.rows().first { it.cloudId == original.cloudId }
         val expense = second.db.expenseDao().insert(ExpenseEntity(userId = second.account.localUserId,
-            categoryId = remote.id, amount = 123, date = "2026-10-17", startTime = "09:15", endTime = "09:30", description = "Unsent synthetic expense"))
+            categoryId = remote.id, amount = 123, date = "2026-10-17", paymentTime = "09:15", description = "Unsent synthetic expense"))
         second.categories.rename(second.account, remote.id, "Offline draft")
         first.categories.archive(first.account, original.id); first.send()
         second.send()

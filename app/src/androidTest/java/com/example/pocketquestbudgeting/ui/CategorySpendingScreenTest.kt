@@ -41,7 +41,7 @@ class CategorySpendingScreenTest {
             for ((category, amount, date) in listOf(Triple(groceries, 50000L, todayIsoDate()),
                 Triple(groceries, 150000L, previous.start), Triple(transport, 200000L, todayIsoDate()))) {
                 db.expenseDao().insert(ExpenseEntity(userId = owner, categoryId = category, amount = amount,
-                    date = date, startTime = "10:00", endTime = "10:15", description = "Summary fixture"))
+                    date = date, paymentTime = "10:00", description = "Summary fixture"))
             }
             compose.setContent { PocketQuestTheme { if (showing) CategorySpendingSummaryScreen(owner, {}) } }
             showRow("Groceries, R2000.00, 50.0% of spending in this period")

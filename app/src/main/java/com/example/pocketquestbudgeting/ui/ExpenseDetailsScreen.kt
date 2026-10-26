@@ -231,10 +231,7 @@ private fun ExpenseDetailsContent(
         ExpenseDetailsCard("Date & time") {
             ExpenseDetailField("Date", expense.date)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                ExpenseDetailField("Start time", expense.startTime, Modifier.weight(1f))
-                ExpenseDetailField("End time", expense.endTime, Modifier.weight(1f))
-            }
+            ExpenseDetailField("Time of payment", expense.paymentTime)
         }
         ExpenseDetailsCard("Description") {
             Text(expense.description.ifBlank { "No description added." },
@@ -294,7 +291,7 @@ private fun ExpenseDetailsPreview() {
             }
             ExpenseDetailsContent(
                 expense = ExpenseEntity(userId = 1, categoryId = 1, amount = 45890,
-                    date = "2026-10-26", startTime = "10:00", endTime = "10:30",
+                    date = "2026-10-26", paymentTime = "10:00",
                     description = "Weekly groceries and household essentials"),
                 categoryName = "Groceries", enabled = true, onEdit = {}, onDelete = {},
                 receipt = { Text("No receipt") },

@@ -55,7 +55,7 @@ class SavingsMigrationTest {
         }
         var db = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(*DatabaseMigrations.ALL).build()
         try {
-            assertEquals(13, db.openHelper.writableDatabase.version)
+            assertEquals(14, db.openHelper.writableDatabase.version)
             assertEquals(before, snapshot(tables) { sql -> db.openHelper.writableDatabase.query(sql) })
             assertTrue(db.savingsDao().getForUser(41, true).isEmpty())
             assertTrue(db.savingsDao().contributions(41, 1).isEmpty())
@@ -72,10 +72,11 @@ class SavingsMigrationTest {
         } finally { db.close(); context.deleteDatabase(name) }
     }
 
+    // Payment-time migration intentionally removes only the old end-time value.
     private fun snapshot(tables: List<String>, query: (String) -> Cursor): Map<String, List<List<String?>>> = tables.associateWith { table ->
-        query("SELECT * FROM `$table` ORDER BY rowid").use { cursor ->
+        query("SELECT * FROM `$table` ORDER BY ${if (table == "sqlite_sequence") "name" else "rowid"}").use { cursor ->
             buildList {
-                while (cursor.moveToNext()) add((0 until cursor.columnCount).map { column ->
+                while (cursor.moveToNext()) add((0 until cursor.columnCount).filter { table != "expenses" || cursor.getColumnName(it) != "endTime" }.map { column ->
                     if (cursor.isNull(column)) null else "${cursor.getType(column)}:${cursor.getString(column)}"
                 })
             }
