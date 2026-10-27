@@ -74,6 +74,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
     var month by remember(userId) { mutableStateOf(historyShortcutRange("month")) }
     var reload by remember { mutableStateOf(0) }
     var goal by remember(userId, month, reload) { mutableStateOf<BudgetGoalEntity?>(null) }
+    // I totalled the month's expenses so the bar can be compared with the monthly limits.
     var spentCents by remember(userId, month, reload) { mutableStateOf(0L) }
     var loading by remember(userId, month, reload) { mutableStateOf(!inspecting) }
     var loadError by remember(userId, month, reload) { mutableStateOf<String?>(null) }
@@ -140,6 +141,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Monthly spending goals", fontSize = 20.sp, color = TextPrimary)
+            // I let last month open here so a finished month can be checked without waiting for month-end.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = !previousMonth, onClick = {
                     previousMonth = false
@@ -169,6 +171,7 @@ internal fun MonthlySpendingGoals(userId: Long) {
                     }
                     val minLimit = saved?.minimumAmount ?: 0L
                     val maxLimit = saved?.maximumAmount ?: 0L
+                    // I used the same under / in-range / over colours as category progress.
                     val overMax = maxLimit > 0L && spentCents > maxLimit
                     val underMin = minLimit > 0L && spentCents < minLimit
                     val barColor = when {

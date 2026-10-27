@@ -4,9 +4,9 @@ Android budgeting app built with Jetpack Compose. Track expenses and category li
 
 ## Video Demonstration
 
-[https://www.youtube.com/watch?v=8R5WFqYDNKo](https://www.youtube.com/watch?v=8R5WFqYDNKo)
+**Final presentation video:** [https://www.youtube.com/watch?v=qLP0yzFze3I](https://www.youtube.com/watch?v=qLP0yzFze3I)
 
-This is the existing demonstration. A final phone recording showing the current online/offline flows and completed extra features is still required.
+**Earlier demonstration:** [https://www.youtube.com/watch?v=8R5WFqYDNKo](https://www.youtube.com/watch?v=8R5WFqYDNKo)
 
 ## Requirements
 

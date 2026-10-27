@@ -89,6 +89,7 @@ private fun AccountNavigation(userId: Long, onLogout: () -> Unit, modifier: Modi
             )
         }
         composable("daily_spend") {
+            // I passed the signed-in account so the graph loads that user's expenses.
             DailySpendingGraphScreen(userId = userId, onBack = { navController.popBackStack() })
         }
         composable("category_spend") {

@@ -81,6 +81,7 @@ private val CategoryColors = listOf(Rent, Groceries, Transport, Entertainment, U
 
 @Composable
 fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
+    // I required the account id so this graph only shows that user's expenses.
     // I saved the selected period so rotation does not reset the graph.
     var period by rememberSaveable { mutableStateOf("month") }
     val range = when (period) {
@@ -98,10 +99,10 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
     var categories by remember(userId, period, reload) {
         mutableStateOf<List<CategoryEntity>>(emptyList())
     }
+    // I loaded the month's spend limits so the graph can label them as monthly, not daily.
     var monthGoal by remember(userId, period, reload) {
         mutableStateOf<BudgetGoalEntity?>(null)
     }
-    // I loaded the month's spend limits so the graph can label them as monthly, not daily.
     var loading by remember(userId, period, reload) { mutableStateOf(!inspecting) }
     var error by remember(userId, period, reload) { mutableStateOf<String?>(null) }
     
@@ -139,6 +140,7 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
             // I loaded category names in the same read so bar labels match the expense category ids.
             val loadedCategories = db.categoryDao().getForUser(userId)
 
+            // I still used this calendar month for week view so monthly limits are not treated as weekly ones.
             val goalRange = if (requestedPeriod == "last_month") {
                 previousMonthRange()
             } else {
@@ -170,7 +172,7 @@ fun DailySpendingGraphScreen(userId: Long, onBack: () -> Unit) {
         }
     }
 
-    // only rebuild when expenses or names or dates change
+    // I rebuilt the bars only when the loaded expenses, names or period changed.
     val days = remember(expenses, categories, range, period) {
         buildChartDays(expenses, categories, range, period)
     }
@@ -457,9 +459,8 @@ private fun buildChartDays(
     val colorByName = names.mapIndexed { index, name ->
         name to CategoryColors[index % CategoryColors.size]
     }.toMap()
-    // Group rows with same date together
+    // I grouped by date so one day stays one bar.
     val byDate = expenses.groupBy { it.date }
-    // java.text means no extra imports needed
     val weekLabel = java.text.SimpleDateFormat("EEE", java.util.Locale.US)
     val parseDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
     return datesInRange(range.start, range.end).map { date ->
@@ -476,7 +477,7 @@ private fun buildChartDays(
                 val name = nameById[categoryId] ?: "Unknown"
                 SpendSegment(
                     name = name,
-                    // If same category is multiple times on one day, then add amounts in single block
+                    // I summed the same category on one day so the stack stays one block.
                     cents = list.sumOf { it.amount },
                     color = colorByName[name] ?: CategoryColors[0],
                 )
@@ -486,6 +487,7 @@ private fun buildChartDays(
     }
 }
 
+// I kept a column for quiet days so the dates stay lined up.
 @Composable
 private fun StackedBar(
     day: DaySpend,
