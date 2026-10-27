@@ -101,6 +101,20 @@ For an administrator migrating existing Firestore expenses, run `node scripts/mi
 
 Android account/database backup is excluded so a copied session is not treated as a first login on another device. Keep existing data when checking migrations or offline recovery; do not clear app storage to hide a database mismatch.
 
+##Special Features
+
+-What's its worth
+  This feature allows the user to visualize their successful budgeting to everyday items that they might use. 
+  For example: "You stayed R600 below your budget. That is equal to 10 protien shakes"
+  The user is able to choose what these comparisons are for, such as travel, food or different activities they would want to try.
+  All these comparisons are estimates so they are not exact.
+
+-Saving Goals
+  This feature will allow the user to set a target that the user will aim for when trying to save and budget for.
+  These goals can user different names which would correlate to which saving goal they are striving to achieve. 
+
+-Achievement System
+
 ## Data and sync behaviour
 
 Screens read account-scoped Room data. Synced writes save the local change and its durable outbox snapshot together. WorkManager retries with network access and restores pending work after restart. **Refresh**, **Retry failed** and **Review sync** expose recovery from the app. A successful local save does not mean the server has acknowledged it.
