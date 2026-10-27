@@ -103,17 +103,17 @@ Android account/database backup is excluded so a copied session is not treated a
 
 ## Special Features
 
-- What's its worth
+- What's its worth: 
 This feature allows the user to visualize their successful budgeting to everyday items that they might use. 
 For example: "You stayed R600 below your budget. That is equal to 10 protien shakes"
 The user is able to choose what these comparisons are for, such as travel, food or different activities they would want to try.
 All these comparisons are estimates so they are not exact.
 
-- Saving Goals
+- Saving Goals: 
 This feature will allow the user to set a target that the user will aim for when trying to save and budget for.
 These goals can user different names which would correlate to which saving goal they are striving to achieve. 
 
-- Achievement System
+- Achievement System: 
 This feature implements an achievement system so when the user completes certain tasks then an achievement will given to the user.
 These achievements might occur when the user signs up for the app for the first time or sets their first budget.
 Different actions will give the user unique badges that the user will be able to collect.
