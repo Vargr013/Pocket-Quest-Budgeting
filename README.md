@@ -101,7 +101,7 @@ For an administrator migrating existing Firestore expenses, run `node scripts/mi
 
 Android account/database backup is excluded so a copied session is not treated as a first login on another device. Keep existing data when checking migrations or offline recovery; do not clear app storage to hide a database mismatch.
 
-##Special Features
+## Special Features
 
 -What's its worth
   This feature allows the user to visualize their successful budgeting to everyday items that they might use. 
